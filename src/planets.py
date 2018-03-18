@@ -79,13 +79,13 @@ learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
 
 
 if __name__ == '__main__':
-    for epoch in range(1000):
+    for epoch in range(100000):
         print('.')
         learner.learn(dataset(), dataset())
 
     print('--------------------------------')
     errsum = 0.0
-    for epoch in range(100):
+    for epoch in range(1000):
         err = learner.test(dataset())
         print(err)
         errsum += err
