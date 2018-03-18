@@ -113,11 +113,11 @@ class ObservableDict(HierarchicalDict):
                             value = val
                     self.data_input[0, pos, :, :, :] = np.array(value).reshape(self.layout_in)
                 elif len(self.layout_input) == 4:
-                    self.data_input[0, pos, :, :] = np.array(self[subkey]).reshape(self.layout)
+                    self.data_input[0, pos, :, :] = np.array(self[subkey]).reshape(self.layout_in)
                 elif len(self.layout_input) == 3:
-                    self.data_input[0, pos, :] = np.array(self[subkey]).reshape(self.layout)
+                    self.data_input[0, pos, :] = np.array(self[subkey]).reshape(self.layout_in)
                 elif len(self.layout_input) == 2:
-                    self.data_input[0, pos] = np.array(self[subkey]).reshape(self.layout)
+                    self.data_input[0, pos] = np.array(self[subkey]).reshape(self.layout_in)
                 else:
                     raise(Exception('layout error'))
 
@@ -139,11 +139,11 @@ class ObservableDict(HierarchicalDict):
 
                     self.data_output[0, pos, :, :, :] = np.array(value).reshape(self.layout_out)
                 elif len(self.layout_output) == 4:
-                    self.data_output[0, pos, :, :] = np.array(self[subkey]).reshape(self.layout)
+                    self.data_output[0, pos, :, :] = np.array(self[subkey]).reshape(self.layout_out)
                 elif len(self.layout_output) == 3:
-                    self.data_output[0, pos, :] = np.array(self[subkey]).reshape(self.layout)
+                    self.data_output[0, pos, :] = np.array(self[subkey]).reshape(self.layout_out)
                 elif len(self.layout_output) == 2:
-                    self.data_output[0, pos] = np.array(self[subkey]).reshape(self.layout)
+                    self.data_output[0, pos] = np.array(self[subkey]).reshape(self.layout_out)
                 else:
                     raise(Exception('layout error'))
 
