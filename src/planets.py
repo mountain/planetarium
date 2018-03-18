@@ -91,7 +91,7 @@ if __name__ == '__main__':
         errsum += err
 
     print('--------------------------------')
-    print(errsum / 100)
+    print(errsum / 1000)
 
 
 
