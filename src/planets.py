@@ -49,8 +49,8 @@ def generator(n, m, yrs):
             lastyear = year
 
             if environ.get('CUDA_HOME') is not None:
-                input = xp.asnumpy(x[1:pv].reshape(szn) / 100.0)
-                output = xp.asnumpy(x[pv:sz].reshape(szm).copy() / 100.0)
+                input = xp.copy(x[1:pv].reshape(szn) / 100.0)
+                output = xp.copy(x[pv:sz].reshape(szm) / 100.0)
             else:
                 input = x[1:pv].reshape(szn).copy() / 100.0
                 output = x[pv:sz].reshape(szm).copy() / 100.0
