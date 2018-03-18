@@ -57,8 +57,8 @@ def generator(n, m, yrs):
             yield year, input, output
 
 
-BATCH = 1
-WINDOW = 18
+BATCH = 5
+WINDOW = 6
 INPUT = 4
 OUTPUT = 2
 
