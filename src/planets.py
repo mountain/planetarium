@@ -11,7 +11,7 @@ from os import environ
 xp = np
 if environ.get('CUDA_HOME') is not None:
     import cupy as cp
-    xp = cp
+    xp = np
 
 import torch.nn as nn
 import torch.optim as optim
