@@ -75,7 +75,7 @@ def loss(result, ys):
     return mse(result, ys)
 
 
-learner = StandardLearner(model, predict, loss, optimizer, batch=4)
+learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
 
 
 if __name__ == '__main__':
@@ -83,7 +83,15 @@ if __name__ == '__main__':
         print('.')
         learner.learn(dataset(), dataset())
 
-    print(learner.test(dataset()))
+    print('--------------------------------')
+    errsum = 0.0
+    for epoch in range(100):
+        err = learner.test(dataset())
+        print(err)
+        errsum += err
+
+    print('--------------------------------')
+    print(errsum / 100)
 
 
 
