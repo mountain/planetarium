@@ -10,6 +10,7 @@ class MLP(nn.Sequential):
         layers = []
         last = len(dims) - 1
         for i in range(last):
+            layers.append(nn.BatchNorm1d(1))
             layers.append(nn.Linear(dims[i], dims[i + 1]))
             if i != last:
                 layers.append(nn.ReLU())
