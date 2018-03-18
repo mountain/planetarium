@@ -27,12 +27,12 @@ class TestNbody(unittest.TestCase):
     def test_nbody_verlet(self):
         t = 0
         x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
-        v = xp.array([[0.0, 0.0, 0.0], [0.0, np.sqrt(au.G * self.m[0]), 0.0]])
+        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]])
         for epoch in range(366):
             t, x, v = self.solver1(t, x, v, 1)
 
-        self.assertLess(np.linalg.norm(x[0]), 0.001)
-        self.assertAlmostEqual(np.linalg.norm(x[1]), 1.0, 6)
+        self.assertLess(xp.linalg.norm(x[0]), 0.001)
+        self.assertAlmostEqual(xp.linalg.norm(x[1]), 1.0, 6)
         self.assertAlmostEqual(x[1][0], 1.0, 3)
         self.assertAlmostEqual(x[1][1], 0.0, 1)
         self.assertAlmostEqual(x[1][2], 0.0, 3)
@@ -40,8 +40,8 @@ class TestNbody(unittest.TestCase):
     def test_nbody_nk4(self):
         t = 0
         x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
-        v = xp.array([[0.0, 0.0, 0.0], [0.0, np.sqrt(au.G * self.m[0]), 0.0]])
-        phase = np.array([[x[0], v[0]], [x[1], v[1]]])
+        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]])
+        phase = xp.array([[x[0], v[0]], [x[1], v[1]]])
         assert(phase[0, 0, 0] == 0.0)
         assert(phase[0, 0, 1] == 0.0)
         assert(phase[0, 0, 2] == 0.0)
@@ -57,8 +57,8 @@ class TestNbody(unittest.TestCase):
         for epoch in range(366):
             t, phase = self.solver2(t, phase, 1)
 
-        self.assertLess(np.linalg.norm(x[0]), 0.001)
-        self.assertAlmostEqual(np.linalg.norm(x[1]), 1.0, 6)
+        self.assertLess(xp.linalg.norm(x[0]), 0.001)
+        self.assertAlmostEqual(xp.linalg.norm(x[1]), 1.0, 6)
         self.assertAlmostEqual(x[1][0], 1.0, 3)
         self.assertAlmostEqual(x[1][1], 0.0, 1)
         self.assertAlmostEqual(x[1][2], 0.0, 3)
