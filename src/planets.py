@@ -6,6 +6,13 @@ import nbody
 import ode
 import unit.au as au
 
+from os import environ
+
+xp = np
+if environ.get('CUDA_HOME') is not None:
+    import cupy as cp
+    xp = cp
+
 import torch.nn as nn
 import torch.optim as optim
 
@@ -22,14 +29,14 @@ def generator(n, m, yrs):
     sz = int(n + m + 1)
     szn = int(3 * n)
     szm = int(3 * m)
-    m = np.random.rand(sz) * 0.001
+    m = xp.random.rand(sz) * 0.001
     m[0] = 1.0
 
-    x = 100.0 * np.random.rand(sz, 3)
-    x[0, :] = np.array([0.0, 0.0, 0.0])
+    x = 100.0 * xp.random.rand(sz, 3)
+    x[0, :] = xp.array([0.0, 0.0, 0.0])
 
-    v = np.sqrt(au.G) * np.random.rand(sz, 3)
-    v[0] = np.array([0.0, 0.0, 0.0])
+    v = xp.sqrt(au.G) * xp.random.rand(sz, 3)
+    v[0] = xp.array([0.0, 0.0, 0.0])
 
     solver = ode.verlet(nbody.acceleration_of(au, m))
 
@@ -40,9 +47,9 @@ def generator(n, m, yrs):
         year = t / 365.256363004
         if year != lastyear:
             lastyear = year
-            input = x[1:pv].reshape(szn).copy() / 100.0
+            ixput = x[1:pv].reshape(szn).copy() / 100.0
             output = x[pv:sz].reshape(szm).copy() / 100.0
-            yield year, input, output
+            yield year, ixput, output
 
 
 BATCH = 4
