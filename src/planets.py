@@ -47,12 +47,17 @@ def generator(n, m, yrs):
         year = t / 365.256363004
         if year != lastyear:
             lastyear = year
-            ixput = x[1:pv].reshape(szn).copy() / 100.0
-            output = x[pv:sz].reshape(szm).copy() / 100.0
-            yield year, ixput, output
+
+            if environ.get('CUDA_HOME') is not None:
+                input = xp.asnumpy(x[1:pv].reshape(szn) / 100.0)
+                output = xp.asnumpy(x[pv:sz].reshape(szm).copy() / 100.0)
+            else:
+                input = x[1:pv].reshape(szn).copy() / 100.0
+                output = x[pv:sz].reshape(szm).copy() / 100.0
+            yield year, input, output
 
 
-BATCH = 4
+BATCH = 1
 WINDOW = 18
 INPUT = 4
 OUTPUT = 2
