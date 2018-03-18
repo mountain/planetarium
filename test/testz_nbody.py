@@ -32,7 +32,7 @@ class TestNbody(unittest.TestCase):
             t, x, v = self.solver1(t, x, v, 1)
 
         self.assertLess(xp.linalg.norm(x[0]), 0.001)
-        self.assertAlmostEqual(xp.linalg.norm(x[1]), 1.0, 6)
+        self.assertAlmostEqual(float(xp.linalg.norm(x[1])), 1.0, 6)
         self.assertAlmostEqual(x[1][0], 1.0, 3)
         self.assertAlmostEqual(x[1][1], 0.0, 1)
         self.assertAlmostEqual(x[1][2], 0.0, 3)
@@ -58,7 +58,7 @@ class TestNbody(unittest.TestCase):
             t, phase = self.solver2(t, phase, 1)
 
         self.assertLess(xp.linalg.norm(x[0]), 0.001)
-        self.assertAlmostEqual(xp.linalg.norm(x[1]), 1.0, 6)
+        self.assertAlmostEqual(float(xp.linalg.norm(x[1])), 1.0, 6)
         self.assertAlmostEqual(x[1][0], 1.0, 3)
         self.assertAlmostEqual(x[1][1], 0.0, 1)
         self.assertAlmostEqual(x[1][2], 0.0, 3)
