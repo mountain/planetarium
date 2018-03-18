@@ -12,8 +12,8 @@ if environ.get('CUDA_HOME') is not None:
 
 def acceleration_of(unit, m):
     n = len(m)
-    r = xp.zeros([n, n])
-    a = xp.zeros([n, n, 3])
+    r = xp.zeros([n, n], dtype=xp.float64)
+    a = xp.zeros([n, n, 3], dtype=xp.float64)
 
     def acceleration(t, x, v):
         for i in range(n):
@@ -37,8 +37,8 @@ def acceleration_of(unit, m):
 
 def derivative_of(unit, m):
     n = len(m)
-    r = xp.zeros([n, n])
-    a = xp.zeros([n, n, 3])
+    r = xp.zeros([n, n], dtype=xp.float64)
+    a = xp.zeros([n, n, 3], dtype=xp.float64)
 
     def derivative(t, phase):
         x = phase[:, 0, :]
@@ -56,7 +56,7 @@ def derivative_of(unit, m):
                     val = unit.G * m[j] / r[i, j] / r[i, j]
                     a[i, j, :] = val * (x[j] - x[i]) / r[i, j]
                 else:
-                    a[i, j, :] = xp.zeros([3])
+                    a[i, j, :] = xp.zeros([3], dtype=xp.float64)
 
         return xp.concatenate((v, xp.sum(a, axis=1, keepdims=True)), axis=1)
 

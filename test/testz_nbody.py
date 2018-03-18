@@ -17,7 +17,7 @@ if environ.get('CUDA_HOME') is not None:
 class TestNbody(unittest.TestCase):
 
     def setUp(self):
-        self.m = xp.array([1.0, 0.000001])
+        self.m = xp.array([1.0, 0.000001], dtype=xp.float64)
         self.solver1 = ode.verlet(nbody.acceleration_of(au, self.m))
         self.solver2 = ode.rk4(nbody.derivative_of(au, self.m))
 
@@ -26,8 +26,8 @@ class TestNbody(unittest.TestCase):
 
     def test_nbody_verlet(self):
         t = 0
-        x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
-        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]])
+        x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=xp.float64)
+        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]], dtype=xp.float64)
         for epoch in range(366):
             t, x, v = self.solver1(t, x, v, 1)
 
@@ -39,9 +39,9 @@ class TestNbody(unittest.TestCase):
 
     def test_nbody_nk4(self):
         t = 0
-        x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
-        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]])
-        phase = xp.array([[x[0], v[0]], [x[1], v[1]]])
+        x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=xp.float64)
+        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]], dtype=xp.float64)
+        phase = xp.array([[x[0], v[0]], [x[1], v[1]]], dtype=xp.float64)
         assert(phase[0, 0, 0] == 0.0)
         assert(phase[0, 0, 1] == 0.0)
         assert(phase[0, 0, 2] == 0.0)

@@ -33,10 +33,10 @@ def generator(n, m, yrs):
     m[0] = 1.0
 
     x = 100.0 * xp.random.rand(sz, 3)
-    x[0, :] = xp.array([0.0, 0.0, 0.0])
+    x[0, :] = xp.array([0.0, 0.0, 0.0], dtype=xp.float64)
 
     v = xp.sqrt(au.G) * xp.random.rand(sz, 3)
-    v[0] = xp.array([0.0, 0.0, 0.0])
+    v[0] = xp.array([0.0, 0.0, 0.0], dtype=xp.float64)
 
     solver = ode.verlet(nbody.acceleration_of(au, m))
 
