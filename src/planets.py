@@ -107,8 +107,6 @@ class Model(nn.Module):
             ResidualBlock1D(2187),
             ResidualBlock1D(2187),
             ResidualBlock1D(2187),
-            ResidualBlock1D(2187),
-            ResidualBlock1D(2187),
             Permutation(),
             MLP(dims=[2187, WINDOW * (INPUT + OUTPUT) * 3]),
         )
@@ -116,8 +114,6 @@ class Model(nn.Module):
         self.evolve = nn.Sequential(
             MLP(dims=[12, 361]),
             Permutation(),
-            ResidualBlock1D(361),
-            ResidualBlock1D(361),
             ResidualBlock1D(361),
             ResidualBlock1D(361),
             ResidualBlock1D(361),

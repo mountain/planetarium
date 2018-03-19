@@ -4,7 +4,6 @@ import torch as th
 import torch.nn as nn
 
 from torch.autograd import Variable
-from torch.nn import functional as F
 
 
 class VAE(nn.Module):
@@ -49,8 +48,12 @@ class VAE(nn.Module):
 
 bce = nn.BCELoss()
 mse = nn.MSELoss()
+kld = nn.KLDivLoss()
 
 
 def vae_loss(batch, dim, recon_x, x, mu, logvar):
-    kld = - 0.5 * th.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return mse(recon_x, x) + kld
+    #kld = - 0.5 * th.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    var = logvar.exp()
+    dist = th.distributions.Normal(mu, var).sample()
+    unit = th.distributions.Normal(mu * 0.0, var.pow(0)).sample()
+    return mse(recon_x, x) + (kld(dist, unit) + kld(unit, dist)) / 2.0
