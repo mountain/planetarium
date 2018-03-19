@@ -105,7 +105,7 @@ class Model(nn.Module):
         ones = th.ones(BATCH, 1, 1)
         if th.cuda.is_available():
             ones = ones.cuda()
-            zero = self.zero.cuda()
+            self.zero = self.zero.cuda()
             self.zeros = self.zeros.cuda()
 
         self.error = Variable(self.zero.clone())
