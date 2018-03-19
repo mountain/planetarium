@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import numpy as np
 
 import nbody
@@ -244,6 +245,7 @@ def loss(xs, ys, result):
     print(th.max(model.error.data), th.min(model.error.data), th.mean(model.error.data))
     print(th.max(model.divrg.data), th.min(model.divrg.data), th.mean(model.divrg.data))
     print('-----------------------------')
+    sys.stdout.flush()
     return lss + model.error + model.divrg
 
 
