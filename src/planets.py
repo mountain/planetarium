@@ -100,18 +100,26 @@ class Model(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
         self.guess = nn.Sequential(
-            MLP(dims=[WINDOW * INPUT * 3, 729]),
+            MLP(dims=[WINDOW * INPUT * 3, 2187]),
             Permutation(),
-            ResidualBlock1D(729),
-            ResidualBlock1D(729),
-            ResidualBlock1D(729),
+            ResidualBlock1D(2187),
+            ResidualBlock1D(2187),
+            ResidualBlock1D(2187),
+            ResidualBlock1D(2187),
+            ResidualBlock1D(2187),
+            ResidualBlock1D(2187),
+            ResidualBlock1D(2187),
             Permutation(),
-            MLP(dims=[729, WINDOW * (INPUT + OUTPUT) * 3]),
+            MLP(dims=[2187, WINDOW * (INPUT + OUTPUT) * 3]),
         )
 
         self.evolve = nn.Sequential(
             MLP(dims=[12, 361]),
             Permutation(),
+            ResidualBlock1D(361),
+            ResidualBlock1D(361),
+            ResidualBlock1D(361),
+            ResidualBlock1D(361),
             ResidualBlock1D(361),
             ResidualBlock1D(361),
             ResidualBlock1D(361),
