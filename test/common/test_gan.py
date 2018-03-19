@@ -50,7 +50,7 @@ def extrad(ys, xs):
     return th.cat([ys, xs], dim=1)
 
 
-def loss(result, ys):
+def loss(xs, ys, result):
     return mse(result, ys)
 
 

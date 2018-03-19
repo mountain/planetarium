@@ -192,12 +192,12 @@ class StandardLearner(BaseLearner):
     def test_step(self, xs, ys):
         output = self.predict(xs)
         szy = ys.size()[1]
-        return output, self.loss(output[:, 0:szy], ys)
+        return output, self.loss(xs, ys, output[:, 0:szy])
 
     def learn_step(self, xs, ys, retain_graph=False):
         self.optimizer.zero_grad()
         output = self.predict(xs)
-        l = self.loss(output, ys)
+        l = self.loss(xs, ys, output)
         l.backward(retain_graph=retain_graph)
         self.optimizer.step()
 
@@ -232,7 +232,7 @@ class TemporalLearner(BaseLearner):
     def test_step(self, xs, ys):
         chs = xs.size()[1]
         output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:chs])
-        return output, self.loss(output, ys[:, 1:chs])
+        return output, self.loss(xs, ys[:, 1:chs], output)
 
     def learn_step(self, xs, ys, retain_graph=False):
         if 0 < th.max(xs[:, 0, :, 0, 0].data) < self.timescale:
@@ -240,7 +240,7 @@ class TemporalLearner(BaseLearner):
 
             chs = xs.size()[1]
             output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:chs])
-            l = self.loss(output, ys[:, 1:chs])
+            l = self.loss(xs, ys[:, 1:chs], output)
             l.backward(retain_graph=retain_graph)
             self.optimizer.step()
 
@@ -280,7 +280,7 @@ class SpecialTemporalLearner(BaseLearner):
             output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:bfc])
         else:
             output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:bfc], sxfs=xs[:, bfc:chs], syfs=ys[:, bfc:chs])
-        return output, self.loss(output, xs[:, 1:chs], ys[:, 1:chs], model=self.model)
+        return output, self.loss(xs[:, 1:chs], ys[:, 1:chs], output, model=self.model)
 
     def learn_step(self, xs, ys, retain_graph=False):
         if 0 < th.max(xs[:, 0, :, 0, 0].data) < self.timescale:
@@ -293,9 +293,9 @@ class SpecialTemporalLearner(BaseLearner):
             else:
                 output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:bfc], sxfs=xs[:, bfc:chs], syfs=ys[:, bfc:chs])
             if 'model' in dir(self):
-                l = self.loss(output, xs[:, 1:chs], ys[:, 1:chs], model=self.model)
+                l = self.loss(xs[:, 1:chs], ys[:, 1:chs], output, model=self.model)
             else:
-                l = self.loss(output, xs[:, 1:chs], ys[:, 1:chs])
+                l = self.loss(xs[:, 1:chs], ys[:, 1:chs], output)
             l.backward(retain_graph=retain_graph)
             self.optimizer.step()
 
@@ -335,17 +335,17 @@ class PQLearner(BaseLearner):
 
     def test_step(self, xs, ys):
         output = self.predictq(xs)
-        return output, self.loss(output, ys)
+        return output, self.loss(xs, ys, output)
 
     def learn_step(self, xs, ys, retain_graph=False):
         self.optimizerp.zero_grad()
         outputp = self.predictp(xs)
-        l = self.loss(outputp, ys)
+        l = self.loss(xs, ys, outputp)
         l.backward(retain_graph=retain_graph)
         self.optimizerp.step()
 
         self.optimizerq.zero_grad()
         outputq = self.predictq(xs)
-        l = self.loss(outputq, ys)
+        l = self.loss(xs, ys, outputq)
         l.backward(retain_graph=retain_graph)
         self.optimizerq.step()

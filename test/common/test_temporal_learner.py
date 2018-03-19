@@ -46,7 +46,7 @@ def predict(ts, ds, xs):
     return model(ts, ds, xs)
 
 
-def loss(result, ys):
+def loss(xs, ys, result):
     return mse(result, ys)
 
 
