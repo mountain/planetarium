@@ -11,10 +11,14 @@ from os import environ
 xp = np
 if environ.get('CUDA_HOME') is not None:
     import cupy as cp
+
     xp = np
 
+import torch as th
 import torch.nn as nn
 import torch.optim as optim
+
+from torch.autograd import Variable
 
 from flare.nn.mlp import MLP
 from flare.nn.vae import VAE, vae_loss
@@ -22,22 +26,22 @@ from flare.nn.vae import VAE, vae_loss
 from flare.learner import StandardLearner
 from flare.dataset.decorators import attributes, segment, divid, sequential, data
 
-
 BATCH = 5
-WINDOW = 6
+SIZE = 6
+WINDOW = 3
 INPUT = 4
 OUTPUT = 2
 
-epsilon = 0.00000001
 
 def transform(k, x):
-    r = np.sqrt(x[:, 0] * x[:, 0] + x[:, 1] * x[:, 1] + x[:, 2] * x[:, 2])
-    phi = np.arctan2(x[:, 0], x[:, 1]) / np.pi + 0.5
-    theta = np.arccos(x[:, 2] / r) / np.pi
-    r = r.reshape([k, 1])
-    phi = phi.reshape([k, 1])
-    theta = theta.reshape([k, 1])
-    return np.concatenate((r / 100.0, theta, phi), axis=1)
+    #r = np.sqrt(x[:, 0] * x[:, 0] + x[:, 1] * x[:, 1] + x[:, 2] * x[:, 2])
+    #phi = np.arctan2(x[:, 0], x[:, 1]) / np.pi / 2.0 + 0.5
+    #theta = np.arccos(x[:, 2] / r) / np.pi
+    #r = r.reshape([k, 1])
+    #phi = phi.reshape([k, 1])
+    #theta = theta.reshape([k, 1])
+    #return np.concatenate((r / 100.0, theta, phi), axis=1)
+    return x / 120.0
 
 
 def generator(n, m, yrs):
@@ -54,7 +58,7 @@ def generator(n, m, yrs):
     x[0, :] = xp.array([0.0, 0.0, 0.0], dtype=xp.float64)
 
     v = xp.sqrt(au.G) * xp.random.rand(sz, 3)
-    v[0] = xp.array([0.0, 0.0, 0.0], dtype=xp.float64)
+    v[0] = - np.sum((m[1:, np.newaxis] * v[1:]) / m[0], axis=0)
 
     solver = ode.verlet(nbody.acceleration_of(au, m))
 
@@ -62,22 +66,27 @@ def generator(n, m, yrs):
     lastyear = 0
     for epoch in range(366 * (yrs + 1)):
         t, x, v = solver(t, x, v, 1)
-        year = t / 365.256363004
+        year = int(t / 365.256363004)
         if year != lastyear:
             lastyear = year
             rtp = transform(sz, x)
+            print('----------------------------------------')
+            print(year)
+            print(np.max(rtp), np.min(rtp), np.average(rtp))
+            print(np.max(v), np.min(v), np.average(v))
+            print('----------------------------------------')
             input = rtp[1:pv].reshape(szn)
             output = rtp[pv:sz].reshape(szm)
             yield year, input, output
 
 
 @data
-@sequential(['ds.x'], ['ds.y'], layout_in=[WINDOW * INPUT * 3], layout_out=[WINDOW * OUTPUT * 3])
-@divid(lengths=[WINDOW], names=['ds'])
-@segment(segment_size=WINDOW)
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE * INPUT * 3], layout_out=[SIZE * OUTPUT * 3])
+@divid(lengths=[SIZE], names=['ds'])
+@segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
 def dataset():
-    return generator(INPUT, OUTPUT, WINDOW)
+    return generator(INPUT, OUTPUT, SIZE)
 
 
 class Model(nn.Module):
@@ -85,25 +94,85 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.batch = bsize
 
-        self.mlp = MLP(dims=[24, 48, 36, 24, 12])
-        self.vaei = VAE(WINDOW * 4 * 3, 48, 24)
-        self.vaeo = VAE(WINDOW * 2 * 3, 24, 12)
+        self.sigmoid = nn.Sigmoid()
+        self.relu = nn.ReLU()
+        self.guess = MLP(dims=[WINDOW * INPUT * 3, 72, 63, WINDOW * (INPUT + OUTPUT) * 3])
+        self.evolve = MLP(dims=[12, 24, 12])
+        self.vae = VAE(WINDOW * (INPUT + OUTPUT) * 3, 48, 12)
+
+        self.zero = th.zeros(1)
+        self.zeros = th.zeros([BATCH, 1, SIZE * OUTPUT * 3])
+        ones = th.ones(BATCH, 1, 1)
+        if th.cuda.is_available():
+            ones = ones.cuda()
+            zero = self.zero.cuda()
+            self.zeros = self.zeros.cuda()
+
+        self.error = Variable(self.zero.clone())
+        self.divrg = Variable(self.zero.clone())
+        self.ratio = Variable(th.cat([ones, ones, ones, ones, ones, ones,
+                                      ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
+                                      ones, ones, ones, ones, ones, ones], dim=2), requires_grad=False)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
-        self.mlp.batch_size_changed(new_val, orig_val)
+        self.guess.batch_size_changed(new_val, orig_val)
+        self.evolve.batch_size_changed(new_val, orig_val)
         self.vae.batch_size_changed(new_val, orig_val)
 
+        self.zeros = th.zeros([self.batch, 1, SIZE * OUTPUT * 3])
+        ones = th.ones(self.batch, 1, 1)
+        if th.cuda.is_available():
+            ones = ones.cuda()
+            self.zeros = self.zeros.cuda()
+
+        self.ratio = Variable(th.cat([ones, ones, ones, ones, ones, ones,
+                                      ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
+                                      ones, ones, ones, ones, ones, ones], dim=2), requires_grad=False)
+
     def forward(self, x):
-        mu, logvar = self.vaei.encode(x)
-        z = self.vaei.reparameterize(mu, logvar)
-        return self.vaeo.decode(self.mlp(z))
+        pivot = WINDOW * INPUT * 3
+        final = WINDOW * (INPUT + OUTPUT) * 3
+        estm = None
+        result = Variable(self.zeros.clone())
+        self.error = Variable(self.zero.clone())
+        self.divrg = Variable(self.zero.clone())
+        for i in range(SIZE - WINDOW):
+            start = i * INPUT * 3
+            end = (i + WINDOW) * INPUT * 3
+            input = x[:, :, start:end]
+            cur = self.guess(input)
+            inner_mu, inner_logvar = self.vae.encode(cur)
+            inner_cur = self.vae.reparameterize(inner_mu, inner_logvar)
+            outer_cur = self.vae.decode(inner_cur)
+            self.divrg += vae_loss(self.batch, final, outer_cur, Variable(cur.data, requires_grad=False), inner_mu, inner_logvar)
+
+            inner_nxt = self.evolve(inner_cur)
+            nxt = self.vae.decode(inner_nxt)
+
+            if estm is None:
+                output = cur[:, :, pivot:final]
+            else:
+                output = estm[:, :, pivot:final]
+                self.error += mse(estm, Variable(cur.data, requires_grad=False))
+
+            start = i * OUTPUT * 3
+            end = (i + WINDOW) * OUTPUT * 3
+            result[:, :, start:end] = result[:, :, start:end] + output
+            estm = nxt
+
+        return result * self.ratio
 
 
 mse = nn.MSELoss()
 
-
-model = Model()
+model = Model(bsize=BATCH)
 optimizer = optim.Adam(model.parameters(), lr=1)
 
 
@@ -112,32 +181,22 @@ def predict(xs):
 
 
 def loss(xs, ys, result):
-    rxs, mu, logvar = model.vaei(xs)
-    vlossx = vae_loss(model.batch, WINDOW * 4 * 3, rxs, xs, mu, logvar)
-    rys, mu, logvar = model.vaeo(ys)
-    vlossy = vae_loss(model.batch, WINDOW * 2 * 3, rys, ys, mu, logvar)
-    lss = mse(result, ys)
-
-    return lss + vlossx + vlossy
+    return mse(result, ys) + model.error + model.divrg
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
 
-
 if __name__ == '__main__':
-    for epoch in range(100000):
+    for epoch in range(1000):
         print('.')
         learner.learn(dataset(), dataset())
 
     print('--------------------------------')
     errsum = 0.0
-    for epoch in range(1000):
+    for epoch in range(100):
         err = learner.test(dataset())
         print(err)
         errsum += err
 
     print('--------------------------------')
-    print(errsum / 1000)
-
-
-
+    print(errsum / 100)

@@ -47,18 +47,10 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-# Reconstruction + KL divergence losses summed over all elements and batch
+bce = nn.BCELoss()
+mse = nn.MSELoss()
+
+
 def vae_loss(batch, dim, recon_x, x, mu, logvar):
-    lss = 0
-    for i in range(batch):
-        a, b = recon_x[i], x[i].view(-1, dim)
-        BCE = F.binary_cross_entropy(a, b, size_average=False)
-
-        # see Appendix B from VAE paper:
-        # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-        # https://arxiv.org/abs/1312.6114
-        # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-        KLD = -0.5 * th.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        lss += (BCE + KLD)
-
-    return lss
+    kld = - 0.5 * th.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    return mse(recon_x, x) + kld
