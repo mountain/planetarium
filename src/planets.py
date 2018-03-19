@@ -35,7 +35,7 @@ OUTPUT = 2
 
 
 def transform(k, x):
-    return x / 120.0
+    return x / 150.0
 
 
 def generator(n, m, yrs):
@@ -64,11 +64,11 @@ def generator(n, m, yrs):
         if year != lastyear:
             lastyear = year
             rtp = transform(sz, x)
-            print('----------------------------------------')
-            print(year)
-            print(np.max(rtp), np.min(rtp), np.average(rtp))
-            print(np.max(v), np.min(v), np.average(v))
-            print('----------------------------------------')
+            #print('----------------------------------------')
+            #print(year)
+            #print(np.max(rtp), np.min(rtp), np.average(rtp))
+            #print(np.max(v), np.min(v), np.average(v))
+            #print('----------------------------------------')
             input = rtp[1:pv].reshape(szn)
             output = rtp[pv:sz].reshape(szm)
             yield year, input, output
@@ -163,7 +163,8 @@ class Model(nn.Module):
         pivot = WINDOW * INPUT * 3
         final = WINDOW * (INPUT + OUTPUT) * 3
         estm = None
-        result = Variable(self.zeros.clone())
+
+        result_p = Variable(self.zeros.clone())
         self.error = Variable(self.zero.clone())
         self.divrg = Variable(self.zero.clone())
         for i in range(SIZE - WINDOW):
@@ -175,23 +176,55 @@ class Model(nn.Module):
             inner_mu, inner_logvar = self.vae.encode(cur)
             inner_cur = self.vae.reparameterize(inner_mu, inner_logvar)
             outer_cur = self.vae.decode(inner_cur)
-            self.divrg += vae_loss(self.batch, final, outer_cur, Variable(cur.data, requires_grad=False), inner_mu, inner_logvar)
-            
+            self.divrg += vae_loss(self.batch, final, outer_cur, Variable(cur.data, requires_grad=False), inner_mu,
+                                   inner_logvar)
+
             inner_nxt = self.evolve(inner_cur)
             nxt = self.vae.decode(inner_nxt)
-            
+
             if estm is None:
                 output = cur[:, :, pivot:final]
             else:
                 output = estm[:, :, pivot:final]
                 self.error += mse(estm, Variable(cur.data, requires_grad=False))
-            
+
             start = i * OUTPUT * 3
             end = (i + WINDOW) * OUTPUT * 3
-            result[:, :, start:end] = result[:, :, start:end] + output + 2 * gss[:, :, start:end]
+            result_p[:, :, start:end] = result_p[:, :, start:end] + output + gss[:, :, start:end]
             estm = nxt
 
-        return (result * self.ratio) / 3.0
+        result_n = Variable(self.zeros.clone())
+        self.error = Variable(self.zero.clone())
+        self.divrg = Variable(self.zero.clone())
+        for i in range(SIZE - WINDOW, 0, -1):
+            start = i * INPUT * 3
+            end = (i + WINDOW) * INPUT * 3
+            order = [33, 34, 35, 30, 31, 32, 27, 28, 29, 24, 25, 26, 21, 22, 23, 18, 19, 20, 15, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2]
+            input = x[0, 0][order].view(1, 1, end - start)
+            cur = self.guess(input)
+            gss = cur.clone()
+            inner_mu, inner_logvar = self.vae.encode(cur)
+            inner_cur = self.vae.reparameterize(inner_mu, inner_logvar)
+            outer_cur = self.vae.decode(inner_cur)
+            self.divrg += vae_loss(self.batch, final, outer_cur, Variable(cur.data, requires_grad=False), inner_mu,
+                                   inner_logvar)
+
+            inner_nxt = self.evolve(inner_cur)
+            nxt = self.vae.decode(inner_nxt)
+
+            if estm is None:
+                output = cur[:, :, pivot:final]
+            else:
+                output = estm[:, :, pivot:final]
+                self.error += mse(estm, Variable(cur.data, requires_grad=False))
+
+            start = i * OUTPUT * 3
+            end = (i + WINDOW) * OUTPUT * 3
+            order = [15, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2]
+            result_n[0, 0, start:end] = result_n[0, 0, start:end] + output[0, 0][order] + gss[0, 0, start:end][order]
+            estm = nxt
+
+        return (result_p + result_n) * self.ratio / 4.0
 
 
 mse = nn.MSELoss()
