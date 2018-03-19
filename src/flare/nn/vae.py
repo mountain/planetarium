@@ -53,4 +53,4 @@ mse = nn.MSELoss()
 
 def vae_loss(batch, dim, recon_x, x, mu, logvar):
     kld = - 0.5 * th.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return bce(recon_x, x) + kld
+    return mse(recon_x, x) + kld
