@@ -21,13 +21,14 @@ import torch.optim as optim
 from torch.autograd import Variable
 
 from flare.nn.mlp import MLP
+from flare.nn.residual import ResidualBlock1D
 from flare.nn.vae import VAE, vae_loss
 
 from flare.learner import StandardLearner
 from flare.dataset.decorators import attributes, segment, divid, sequential, data
 
 BATCH = 5
-SIZE = 6
+SIZE = 9
 WINDOW = 3
 INPUT = 4
 OUTPUT = 2
@@ -82,6 +83,14 @@ def dataset():
     return generator(INPUT, OUTPUT, SIZE)
 
 
+class Permutation(nn.Module):
+    def __init__(self):
+        super(Permutation, self).__init__()
+
+    def forward(self, x):
+        return x.permute(0, 2, 1)
+
+
 class Model(nn.Module):
     def __init__(self, bsize=1):
         super(Model, self).__init__()
@@ -89,7 +98,15 @@ class Model(nn.Module):
 
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
-        self.guess = MLP(dims=[WINDOW * INPUT * 3, 72, 63, WINDOW * (INPUT + OUTPUT) * 3])
+        self.guess = nn.Sequential(
+            MLP(dims=[WINDOW * INPUT * 3, 729]),
+            Permutation(),
+            ResidualBlock1D(729),
+            ResidualBlock1D(729),
+            ResidualBlock1D(729),
+            Permutation(),
+            MLP(dims=[729, WINDOW * (INPUT + OUTPUT) * 3]),
+        )
 
         self.evolve = MLP(dims=[12, 24, 12])
         self.vae = VAE(WINDOW * (INPUT + OUTPUT) * 3, 48, 12)
@@ -108,12 +125,14 @@ class Model(nn.Module):
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
                                       ones, ones, ones, ones, ones, ones], dim=2), requires_grad=False)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
-        self.guess.batch_size_changed(new_val, orig_val)
         self.evolve.batch_size_changed(new_val, orig_val)
         self.vae.batch_size_changed(new_val, orig_val)
 
@@ -125,6 +144,9 @@ class Model(nn.Module):
 
         self.ratio = Variable(th.cat([ones, ones, ones, ones, ones, ones,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
@@ -188,16 +210,16 @@ def loss(xs, ys, result):
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
 
 if __name__ == '__main__':
-    for epoch in range(1000):
+    for epoch in range(10000):
         print('.')
         learner.learn(dataset(), dataset())
 
     print('--------------------------------')
     errsum = 0.0
-    for epoch in range(100):
+    for epoch in range(1000):
         err = learner.test(dataset())
         print(err)
         errsum += err
 
     print('--------------------------------')
-    print(errsum / 100)
+    print(errsum / 1000)
