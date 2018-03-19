@@ -108,7 +108,15 @@ class Model(nn.Module):
             MLP(dims=[729, WINDOW * (INPUT + OUTPUT) * 3]),
         )
 
-        self.evolve = MLP(dims=[12, 24, 12])
+        self.evolve = nn.Sequential(
+            MLP(dims=[12, 361]),
+            Permutation(),
+            ResidualBlock1D(361),
+            ResidualBlock1D(361),
+            ResidualBlock1D(361),
+            Permutation(),
+            MLP(dims=[361, 12]),
+        )
         self.vae = VAE(WINDOW * (INPUT + OUTPUT) * 3, 48, 12)
 
         self.zero = th.zeros(1)
@@ -133,7 +141,6 @@ class Model(nn.Module):
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
-        self.evolve.batch_size_changed(new_val, orig_val)
         self.vae.batch_size_changed(new_val, orig_val)
 
         self.zeros = th.zeros([self.batch, 1, SIZE * OUTPUT * 3])
