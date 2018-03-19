@@ -34,13 +34,6 @@ OUTPUT = 2
 
 
 def transform(k, x):
-    #r = np.sqrt(x[:, 0] * x[:, 0] + x[:, 1] * x[:, 1] + x[:, 2] * x[:, 2])
-    #phi = np.arctan2(x[:, 0], x[:, 1]) / np.pi / 2.0 + 0.5
-    #theta = np.arccos(x[:, 2] / r) / np.pi
-    #r = r.reshape([k, 1])
-    #phi = phi.reshape([k, 1])
-    #theta = theta.reshape([k, 1])
-    #return np.concatenate((r / 100.0, theta, phi), axis=1)
     return x / 120.0
 
 
@@ -97,6 +90,7 @@ class Model(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
         self.guess = MLP(dims=[WINDOW * INPUT * 3, 72, 63, WINDOW * (INPUT + OUTPUT) * 3])
+
         self.evolve = MLP(dims=[12, 24, 12])
         self.vae = VAE(WINDOW * (INPUT + OUTPUT) * 3, 48, 12)
 
@@ -148,26 +142,27 @@ class Model(nn.Module):
             end = (i + WINDOW) * INPUT * 3
             input = x[:, :, start:end]
             cur = self.guess(input)
+            gss = cur.clone()
             inner_mu, inner_logvar = self.vae.encode(cur)
             inner_cur = self.vae.reparameterize(inner_mu, inner_logvar)
             outer_cur = self.vae.decode(inner_cur)
             self.divrg += vae_loss(self.batch, final, outer_cur, Variable(cur.data, requires_grad=False), inner_mu, inner_logvar)
-
+            
             inner_nxt = self.evolve(inner_cur)
             nxt = self.vae.decode(inner_nxt)
-
+            
             if estm is None:
                 output = cur[:, :, pivot:final]
             else:
                 output = estm[:, :, pivot:final]
                 self.error += mse(estm, Variable(cur.data, requires_grad=False))
-
+            
             start = i * OUTPUT * 3
             end = (i + WINDOW) * OUTPUT * 3
-            result[:, :, start:end] = result[:, :, start:end] + output
+            result[:, :, start:end] = result[:, :, start:end] + output + 2 * gss[:, :, start:end]
             estm = nxt
 
-        return result * self.ratio
+        return (result * self.ratio) / 3.0
 
 
 mse = nn.MSELoss()
@@ -181,7 +176,13 @@ def predict(xs):
 
 
 def loss(xs, ys, result):
-    return mse(result, ys) + model.error + model.divrg
+    lss = mse(result, ys)
+    print('-----------------------------')
+    print(th.max(lss.data), th.min(lss.data), th.mean(lss.data))
+    print(th.max(model.error.data), th.min(model.error.data), th.mean(model.error.data))
+    print(th.max(model.divrg.data), th.min(model.divrg.data), th.mean(model.divrg.data))
+    print('-----------------------------')
+    return lss + model.error + model.divrg
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
