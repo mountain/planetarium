@@ -29,8 +29,8 @@ from flare.learner import StandardLearner
 from flare.dataset.decorators import attributes, segment, divid, sequential, data
 
 BATCH = 5
-SIZE = 9
-WINDOW = 3
+SIZE = 12
+WINDOW = 6
 INPUT = 4
 OUTPUT = 2
 
@@ -137,12 +137,16 @@ class Model(nn.Module):
         self.ratio = Variable(th.cat([ones, ones, ones, ones, ones, ones,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
-                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
-                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
-                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0,
+                                      ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0,
+                                      ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0,
+                                      ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0,
+                                      ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0,
+                                      ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
-                                      ones, ones, ones, ones, ones, ones], dim=2), requires_grad=False)
+                                      ones, ones, ones, ones, ones, ones
+                                      ], dim=2), requires_grad=False)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
@@ -157,12 +161,16 @@ class Model(nn.Module):
         self.ratio = Variable(th.cat([ones, ones, ones, ones, ones, ones,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
-                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
-                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
-                                      ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
+                                      ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0,
+                                      ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0,
+                                      ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0,
+                                      ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0, ones / 6.0,
+                                      ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0, ones / 5.0,
+                                      ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0, ones / 4.0,
                                       ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0, ones / 3.0,
                                       ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0, ones / 2.0,
-                                      ones, ones, ones, ones, ones, ones], dim=2), requires_grad=False)
+                                      ones, ones, ones, ones, ones, ones
+                                      ], dim=2), requires_grad=False)
 
     def forward(self, x):
         pivot = WINDOW * INPUT * 3
@@ -204,7 +212,12 @@ class Model(nn.Module):
         for i in range(SIZE - WINDOW, 0, -1):
             start = i * INPUT * 3
             end = (i + WINDOW) * INPUT * 3
-            order = [33, 34, 35, 30, 31, 32, 27, 28, 29, 24, 25, 26, 21, 22, 23, 18, 19, 20, 15, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2]
+            order = [
+                69, 70, 71, 66, 67, 68, 63, 64, 65, 60, 61, 62, 57, 58, 59, 54, 55, 56,
+                51, 52, 53, 48, 49, 50, 45, 46, 47, 42, 43, 44, 39, 40, 41, 36, 37, 38,
+                33, 34, 35, 30, 31, 32, 27, 28, 29, 24, 25, 26, 21, 22, 23, 18, 19, 20,
+                15, 16, 17, 12, 13, 14,  9, 10, 11,  6,  7,  8,  3,  4,  5,  0,  1,  2,
+            ]
             input = x[0, 0][order].view(1, 1, end - start)
             cur = self.guess(input)
             gss = cur.clone()
@@ -225,11 +238,14 @@ class Model(nn.Module):
 
             start = i * OUTPUT * 3
             end = (i + WINDOW) * OUTPUT * 3
-            order = [15, 16, 17, 12, 13, 14, 9, 10, 11, 6, 7, 8, 3, 4, 5, 0, 1, 2]
+            order = [
+                33, 34, 35, 30, 31, 32, 27, 28, 29, 24, 25, 26, 21, 22, 23, 18, 19, 20,
+                15, 16, 17, 12, 13, 14,  9, 10, 11,  6,  7,  8,  3,  4,  5,  0,  1,  2,
+            ]
             result_n[0, 0, start:end] = result_n[0, 0, start:end] + output[0, 0][order] + gss[0, 0, start:end][order]
             estm = nxt
 
-        return (result_p + result_n) * self.ratio / 4.0
+        return (result_p + result_n) * self.ratio / 2.0
 
 
 mse = nn.MSELoss()
