@@ -24,9 +24,7 @@ import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
 
-
-from flare.nn.mlp import MLP
-from flare.nn.residual import ResidualBlock1D
+from flare.nn.residual import ResidualBlock2D
 from flare.nn.vae import VAE, vae_loss
 
 from flare.learner import StandardLearner
@@ -80,20 +78,21 @@ def generator(n, m, yrs):
             lastyear = year
             rtp = x / SCALE
             ht = h(x, v)
-            hdel = ht - lasth
-            input = np.concatenate([rtp[1:pv].reshape([szn]), hdel[1:pv].reshape([n])]).reshape([szn + n])
+            dh = ht - lasth
+            inputp = rtp[1:pv].reshape([szn])
+            inputdh = dh[1:pv].reshape([n])
             output = rtp[pv:sz].reshape(szm)
-            yield year, input, output
+            yield year, inputp, inputdh, output
             lasth = ht
 
 
 @data
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE * INPUT * 4], layout_out=[SIZE * OUTPUT * 3])
+@sequential(['ds.p', 'ds.dh'], ['ds.y'], layout_in=[[SIZE, INPUT, 3], [SIZE, INPUT, 1]], layout_out=[[SIZE, OUTPUT, 3]])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
-@attributes('yr', 'x', 'y')
-def dataset():
-    return generator(INPUT, OUTPUT, SIZE)
+@attributes('yr', 'p', 'dh', 'y')
+def dataset(n):
+    return generator(INPUT, OUTPUT, SIZE * n)
 
 
 class Permutation(nn.Module):
@@ -105,99 +104,72 @@ class Permutation(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, bsize=1):
+    def __init__(self, bsize=1, omass=None):
         super(Model, self).__init__()
         self.batch = bsize
+        self.omass = omass
 
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
         self.guess = nn.Sequential(
-            MLP(dims=[WINDOW * INPUT * 4, 2187]),
-            Permutation(),
-            ResidualBlock1D(2187),
-            ResidualBlock1D(2187),
-            ResidualBlock1D(2187),
-            ResidualBlock1D(2187),
-            ResidualBlock1D(2187),
-            Permutation(),
-            MLP(dims=[2187, WINDOW * (INPUT + OUTPUT) * 3 + INPUT + OUTPUT]),
+            nn.Conv2d(4, 256, kernel_size=3, padding=1),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            nn.Conv2d(256, 6, kernel_size=3, padding=1),
         )
 
         self.evolve = nn.Sequential(
-            MLP(dims=[7 * (INPUT + OUTPUT), 361]),
-            Permutation(),
-            ResidualBlock1D(361),
-            ResidualBlock1D(361),
-            ResidualBlock1D(361),
-            ResidualBlock1D(361),
-            ResidualBlock1D(361),
-            Permutation(),
-            MLP(dims=[361, 6 * (INPUT + OUTPUT)]),
+            nn.Conv2d(4, 256, kernel_size=3, padding=1),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            nn.Conv2d(256, 4, kernel_size=3, padding=1),
         )
-        self.vae = VAE(WINDOW * (INPUT + OUTPUT) * 3, 90, 6 * (INPUT + OUTPUT))
-
-        self.zero = th.zeros(1)
-        self.zeros = th.zeros([BATCH, 1, SIZE * OUTPUT * 3])
-        ones = th.ones(BATCH, 1, 1)
-        if th.cuda.is_available():
-            ones = ones.cuda()
-            self.zero = self.zero.cuda()
-            self.zeros = self.zeros.cuda()
-
-        self.error = Variable(self.zero.clone())
-        self.divrg = Variable(self.zero.clone())
+        self.vae = VAE(4, 256, 2)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
-        self.vae.batch_size_changed(new_val, orig_val)
 
-        self.zeros = th.zeros([self.batch, 1, SIZE * OUTPUT * 3])
-        ones = th.ones(self.batch, 1, 1)
-        if th.cuda.is_available():
-            ones = ones.cuda()
-            self.zeros = self.zeros.cuda()
+    def forward(self, p, dh):
+        windowi = WINDOW * INPUT * self.batch
+        window = WINDOW * (INPUT + OUTPUT) * self.batch
 
-    def forward(self, x):
-        pivot = WINDOW * INPUT * 3
-        final = WINDOW * (INPUT + OUTPUT) * 3
-        estm = None
+        result = Variable(th.zeros(self.batch, 3, SIZE, (INPUT + OUTPUT)))
+        self.merror = Variable(th.zeros(self.batch, 1, 1, 1))
+        self.error = Variable(th.zeros(self.batch, 1, 1, 1))
+        self.divrg = Variable(th.zeros(self.batch, 1, 1, 1))
 
-        result_p = Variable(self.zeros.clone())
-        self.merror = Variable(self.zero.clone())
-        self.error = Variable(self.zero.clone())
-        self.divrg = Variable(self.zero.clone())
-        for i in range(SIZE - WINDOW):
-            start = i * INPUT * 3
-            end = (i + WINDOW) * INPUT * 3
-            input = x[:, :, start:(end + INPUT * WINDOW)]
+        init_p = p[:, :, 0:WINDOW, :]
+        init_dh = dh[:, :, 0:WINDOW, :]
+        init = th.cat((init_p, init_dh), dim=1).view(windowi * 4)
 
-            guess = self.guess(input)
-            gmass = guess[:, :, 0:(INPUT + OUTPUT)] / MSCALE
-            cur = guess[:, :, (INPUT + OUTPUT):WINDOW * (INPUT + OUTPUT) * 4]
-            self.gmass = gmass
+        guess = self.guess(init).view(self.batch, 6, WINDOW, OUTPUT)
+        gmass = guess[:, 0:1, :, :]
+        gposn = guess[:, 1:4, :, :]
+        gdelh = guess[:, 4:6, :, :]
 
-            inner_mu, inner_logvar = self.vae.encode((cur + 1) / 2)
-            inner_cur = self.vae.reparameterize(inner_mu, inner_logvar)
-            outer_cur = 2 * self.vae.decode(inner_cur) - 1
-            self.divrg += vae_loss(self.batch, final, (outer_cur + 1) / 2, (Variable(cur.data, requires_grad=False) + 1) / 2, inner_mu,
-                                   inner_logvar)
+        self.mass = th.cat((self.omass, gmass), dim=1)
+        self.posn = th.cat((init_p, gposn), dim=1)
+        self.delh = th.cat((init_dh, gdelh), dim=1)
+        self.state = th.cat((self.posn, self.delh), dim=1)
 
-            inner_nxt = self.evolve(th.cat([gmass, inner_cur], dim=2))
-            nxt = 2 * self.vae.decode(inner_nxt) - 1
-
-            if estm is None:
-                output = cur[:, :, pivot:final]
+        for i in range(SIZE):
+            if i < WINDOW:
+                result[:, :, i, :] = init_p[:, :, i, :]
             else:
-                output = estm[:, :, pivot:final]
-                self.error += mse(estm, Variable(cur.data, requires_grad=False))
-                self.merror += mse(gmass[0, 0], Variable(th.from_numpy(mass[1:]).float(), requires_grad=False)) * MSCALE * MSCALE
+                state = self.state.view(window * 4)
+                mu, logvar = self.vae.encode(state)
+                inner = self.vae.reparameterize(mu, logvar)
+                outer = self.vae.decode(inner)
+                self.divrg += vae_loss(self.batch, window * 5, outer, Variable(state.data, requires_grad=False), mu, logvar)
 
-            start = i * OUTPUT * 3
-            end = (i + WINDOW) * OUTPUT * 3
-            result_p[:, :, start:end] = (output + cur[:, :, start:end]) / 2
-            estm = nxt
+                inner_nxt = self.evolve(inner, dim=2)
+                outer_nxt = self.vae.decode(inner_nxt)
+                self.state = outer_nxt.view(WINDOW, (INPUT + OUTPUT), 4)
+                result[:, :, i, :] = self.state[:, 0:3, i, :]
 
-        return result_p
+        return result
 
 
 mse = nn.MSELoss()
@@ -259,12 +231,12 @@ learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
 if __name__ == '__main__':
     for epoch in range(10000):
         print('.')
-        learner.learn(dataset(), dataset())
+        learner.learn(dataset(100), dataset(10))
 
     print('--------------------------------')
     errsum = 0.0
     for epoch in range(1000):
-        err = learner.test(dataset())
+        err = learner.test(dataset(100))
         print(err)
         errsum += err
 
