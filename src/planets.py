@@ -69,7 +69,7 @@ def generator(n, m, yrs):
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
     h = hamilton.hamiltonian(au, mass)
-    h0 = h(x, v)
+    lasth = h(x, v)
 
     t = 0
     lastyear = 0
@@ -78,12 +78,13 @@ def generator(n, m, yrs):
         year = int(t / 365.256363004)
         if year != lastyear:
             lastyear = year
-            rtp = x / SCALE / 2.0
+            rtp = x / SCALE
             ht = h(x, v)
-            hdel = ht - h0
+            hdel = ht - lasth
             input = np.concatenate([rtp[1:pv].reshape([szn]), hdel[1:pv].reshape([n])]).reshape([szn + n])
             output = rtp[pv:sz].reshape(szm)
             yield year, input, output
+            lasth = ht
 
 
 @data
@@ -228,7 +229,7 @@ def loss(xs, ys, result):
 
     if counter % 1 == 0:
         input = xs.data.numpy().reshape([SIZE, INPUT, 4])
-        truth = ys.data.numpy().reshape([SIZE, OUTPUT, 4])
+        truth = ys.data.numpy().reshape([SIZE, OUTPUT, 3])
         guess = result.data.numpy().reshape([SIZE, OUTPUT, 3])
         gmass = model.gmass[0, 0, :].data.numpy()
 
