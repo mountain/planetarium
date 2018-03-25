@@ -5,6 +5,7 @@ import numpy as np
 
 import nbody
 import ode
+import hamilton
 import unit.au as au
 
 from os import environ
@@ -38,17 +39,14 @@ SCALE = 50.0
 MSCALE = 500.0
 
 BATCH = 5
-SIZE = 72
-WINDOW = 24
+SIZE = 18
+WINDOW = 6
 INPUT = 4
 OUTPUT = 2
 
 
 mass = None
 
-
-def transform(k, x):
-    return x / SCALE
 
 def generator(n, m, yrs):
     global mass
@@ -70,6 +68,8 @@ def generator(n, m, yrs):
     v[0] = - np.sum((mass[1:, np.newaxis] * v[1:]) / mass[0], axis=0)
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
+    h = hamilton.hamiltonian(au, mass)
+    h0 = h(x, v)
 
     t = 0
     lastyear = 0
@@ -78,14 +78,16 @@ def generator(n, m, yrs):
         year = int(t / 365.256363004)
         if year != lastyear:
             lastyear = year
-            rtp = transform(sz, x)
-            input = rtp[1:pv].reshape(szn)
+            rtp = x / SCALE / 2.0
+            ht = h(x, v)
+            hdel = ht - h0
+            input = np.concatenate([rtp[1:pv].reshape([szn]), hdel[1:pv].reshape([n])]).reshape([szn + n])
             output = rtp[pv:sz].reshape(szm)
             yield year, input, output
 
 
 @data
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE * INPUT * 3], layout_out=[SIZE * OUTPUT * 3])
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE * INPUT * 4], layout_out=[SIZE * OUTPUT * 3])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
@@ -109,7 +111,7 @@ class Model(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
         self.guess = nn.Sequential(
-            MLP(dims=[WINDOW * INPUT * 3, 2187]),
+            MLP(dims=[WINDOW * INPUT * 4, 2187]),
             Permutation(),
             ResidualBlock1D(2187),
             ResidualBlock1D(2187),
@@ -166,11 +168,11 @@ class Model(nn.Module):
         for i in range(SIZE - WINDOW):
             start = i * INPUT * 3
             end = (i + WINDOW) * INPUT * 3
-            input = x[:, :, start:end]
+            input = x[:, :, start:(end + INPUT * WINDOW)]
 
             guess = self.guess(input)
             gmass = guess[:, :, 0:(INPUT + OUTPUT)] / MSCALE
-            cur = guess[:, :, (INPUT + OUTPUT):]
+            cur = guess[:, :, (INPUT + OUTPUT):WINDOW * (INPUT + OUTPUT) * 4]
             self.gmass = gmass
 
             inner_mu, inner_logvar = self.vae.encode((cur + 1) / 2)
@@ -225,8 +227,8 @@ def loss(xs, ys, result):
     sys.stdout.flush()
 
     if counter % 1 == 0:
-        input = xs.data.numpy().reshape([SIZE, INPUT, 3])
-        truth = ys.data.numpy().reshape([SIZE, OUTPUT, 3])
+        input = xs.data.numpy().reshape([SIZE, INPUT, 4])
+        truth = ys.data.numpy().reshape([SIZE, OUTPUT, 4])
         guess = result.data.numpy().reshape([SIZE, OUTPUT, 3])
         gmass = model.gmass[0, 0, :].data.numpy()
 
