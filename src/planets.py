@@ -38,7 +38,7 @@ SCALE = 50.0
 MSCALE = 500.0
 
 BATCH = 5
-SIZE = 72
+SIZE = 144
 WINDOW = 24
 INPUT = 4
 OUTPUT = 2
@@ -49,6 +49,7 @@ mass = None
 
 def transform(k, x):
     return x / SCALE
+
 
 def generator(n, m, yrs):
     global mass
