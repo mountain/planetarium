@@ -238,7 +238,7 @@ def loss(xs, ys, result):
     if counter % 1 == 0:
         input = xs.data.numpy().reshape([model.batch, 5, SIZE, INPUT])[0, 2:5, :, :]
         truth = ps.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
-        guess = result.data.numpy().reshape([model.batch, SIZE, OUTPUT, 3])[0, :, :, :]
+        guess = result.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
         gmass = model.gmass[0, 0, 0, :].data.numpy()
         tmass = model.tmass[0, 0, 0, :].data.numpy()
         mass = ms[0, 0, 0, :].data.numpy()
