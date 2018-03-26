@@ -53,4 +53,4 @@ def vae_loss(recon_x, x, mu, logvar):
     var = logvar.exp()
     dist = th.distributions.Normal(mu, var).sample()
     unit = th.distributions.Normal(mu * 0.0, var.pow(0)).sample()
-    return bce(th.sigmoid(recon_x), th.sigmoid(x)) + kld(dist, unit)
+    return bce(th.sigmoid(recon_x), th.sigmoid(x)) + (kld(dist, unit) + kld(unit, dist)) / 2.0

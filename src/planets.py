@@ -77,12 +77,12 @@ def generator(n, m, yrs):
             rtp = x / SCALE
             ht = h(x, v)
             dh = ht - lasth
-            inputm = mass[1:INPUT+1].reshape([n, 1])
+            inputm = mass[1:INPUT+1].reshape([n, 1]) * MSCALE
             inputp = rtp[1:pv].reshape([n, 3])
             inputdh = dh[1:pv].reshape([n, 1])
             input = np.concatenate([inputm, inputdh, inputp], axis=1).reshape([n * 5])
 
-            outputm = mass[INPUT+1:].reshape([m, 1])
+            outputm = mass[INPUT+1:].reshape([m, 1]) * MSCALE
             outputp = rtp[pv:sz].reshape([m, 3])
             output = np.concatenate([outputm, outputp], axis=1).reshape([m * 4])
             yield year, input, output
@@ -116,16 +116,24 @@ class Model(nn.Module):
             nn.Tanh(),
         )
 
-        self.evolve = nn.Sequential(
-            nn.Tanh(),
-            nn.Conv2d(2, 256, kernel_size=3, padding=1),
+        self.gate = nn.Sequential(
+            nn.Conv2d(4, 256, kernel_size=3, padding=1),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
-            nn.Conv2d(256, 2, kernel_size=3, padding=1),
+            nn.Conv2d(256, 1, kernel_size=3, padding=1),
             nn.Sigmoid(),
         )
-        self.vae = VAE(4, 256, 2)
+
+        self.evolve = nn.Sequential(
+            nn.Conv2d(3, 256, kernel_size=3, padding=1),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            nn.Conv2d(256, 3, kernel_size=3, padding=1),
+            nn.Sigmoid(),
+        )
+        self.vae = VAE(4, 256, 3)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
@@ -148,8 +156,8 @@ class Model(nn.Module):
         guess = self.guess(init)
         guess = guess.view(self.batch, 5, WINDOW, OUTPUT)
         gmass = guess[:, 0:1, :, :]
-        gdelh = guess[:, 1:2, :, :]
-        gposn = guess[:, 2:5, :, :]
+        gposn = guess[:, 1:4, :, :]
+        gdelh = guess[:, 4:5, :, :]
 
         self.tmass = m
         self.gmass = th.cat((init_m, gmass), dim=3)
@@ -165,11 +173,34 @@ class Model(nn.Module):
                 mu, logvar = self.vae.encode(state)
                 inner = self.vae.reparameterize(mu, logvar)
                 outer = self.vae.decode(inner)
-                self.divrg += vae_loss(outer, Variable(state.data, requires_grad=False), mu, logvar)
-
+                self.divrg += vae_loss(outer, Variable(state.data, requires_grad=False), mu, logvar) / WINDOW
                 inner_nxt = self.evolve(inner)
-                self.state = self.vae.decode(inner_nxt)
-                result[:, :, i, :] = self.state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
+                state = self.vae.decode(inner_nxt)
+
+                if i < SIZE - WINDOW:
+                    start = 0
+                    curr_p = p[:, :, i:i+WINDOW, :]
+                    curr_dh = dh[:, :, i:i+WINDOW, :]
+                    curr = th.cat((curr_p, curr_dh), dim=1)
+                    gcurr = self.guess(curr)
+                    gcurr = gcurr.view(self.batch, 5, WINDOW, OUTPUT)
+                else:
+                    start = WINDOW + i - SIZE
+                    if start > 0:
+                        start = 1
+                    curr_p = p[:, :, i:SIZE, :]
+                    curr_dh = dh[:, :, i:SIZE, :]
+                    curr = th.cat((curr_p, curr_dh), dim=1)
+                    gcurr = self.guess(curr)
+                    gcurr = gcurr.view(self.batch, 5, SIZE - i, OUTPUT)
+
+                left = state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
+                right = gcurr[:, 2:5, -1, :]
+                result[:, :, i, :] = (left + 2 * right) / 3.0
+
+                update = th.cat([curr, gcurr[:, 1:5, :, :]], dim=3)
+                gate = self.gate(state)[:, :, start:, :]
+                self.state = (1 - gate) * state[:, :, start:, :] + gate * update
 
         return result
 
@@ -214,19 +245,19 @@ def loss(xs, ys, result):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(input[0, :, 0], input[1, :, 0], input[2, :, 0], 'o', markersize=tmass[0] * 3000)
-        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=tmass[1] * 3000)
-        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=tmass[2] * 3000)
-        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=tmass[3] * 3000)
+        ax.plot(input[0, :, 0], input[1, :, 0], input[2, :, 0], 'o', markersize=tmass[0] * 6)
+        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=tmass[1] * 6)
+        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=tmass[2] * 6)
+        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=tmass[3] * 6)
         plt.savefig('data/obsv.png')
         plt.close()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=mass[0] * 3000)
-        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=mass[1] * 3000)
-        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 3000)
-        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 3000)
+        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=mass[0] * 6)
+        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=mass[1] * 6)
+        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 6)
+        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 6)
         plt.savefig('data/pred.png')
         plt.close()
 
