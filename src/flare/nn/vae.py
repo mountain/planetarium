@@ -48,6 +48,7 @@ mse = nn.MSELoss()
 bce = nn.BCELoss()
 kld = nn.KLDivLoss()
 
+
 def vae_loss(recon_x, x, mu, logvar):
     var = logvar.exp()
     dist = th.distributions.Normal(mu, var).sample()
