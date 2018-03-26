@@ -72,7 +72,7 @@ class HierarchicalDict(dict):
 
 
 class ObservableDict(HierarchicalDict):
-    def __init__(self, inputs, outputs, layout=[], layout_in=None, layout_out=None):
+    def __init__(self, inputs, outputs, layout=[], layout_in=None, layout_out=None, layouts_in=None, layouts_out=None, layout_kinds=None, kinds_order=None):
         super(ObservableDict, self).__init__([])
         self.list_input = inputs
         self.list_output = outputs
@@ -80,6 +80,15 @@ class ObservableDict(HierarchicalDict):
         self.fields_output = set(outputs)
         self.fields_processed = set()
         self.layout = layout
+        self.layout_kinds = layout_kinds
+        self.kinds_order = kinds_order
+
+        self.layouts_in = layouts_in
+        self.layouts_out = layouts_out
+        if layouts_in is not None:
+            layout_in = reduce(int.__add__, [reduce(int.__mul__, elm, 1) for elm in layouts_in], 0)
+        if layouts_out is not None:
+            layout_out = reduce(int.__add__, [reduce(int.__mul__, elm, 1) for elm in layouts_out], 0)
 
         if layout_in is None:
             layout_in = layout
@@ -151,6 +160,10 @@ class ObservableDict(HierarchicalDict):
         for k in another.keys():
             self[k] = another[k]
 
+    def reorder(self):
+        ks = self.layout_kinds
+        ko = self.kinds_order
+
 
 class memo(object):
     def __init__(self, f):
@@ -204,11 +217,11 @@ def discrete(inputs, outputs, layout=[]):
     return wrapper
 
 
-def sequential(inputs, outputs, layout=[], layout_in=None, layout_out=None):
+def sequential(inputs, outputs, layout=[], layout_in=None, layout_out=None, layouts_in=None, layouts_out=None, layout_kinds=None, kinds_order=None):
     def wrapper(f):
         def wrapped(*args, **kwargs):
             for data in f(*args, **kwargs):
-                result = ObservableDict(inputs, outputs, layout, layout_in, layout_out)
+                result = ObservableDict(inputs, outputs, layout, layout_in, layout_out, layouts_in, layouts_out, layout_kinds, kinds_order)
                 result.update(data)
                 yield result
         return wrapped
@@ -336,6 +349,7 @@ def debug():
 def data(f):
     def wrapped(*args, **kwargs):
         for result in f(*args, **kwargs):
+            result.reorder()
             yield [(result.data_input, result.data_output)]
     return wrapped
 

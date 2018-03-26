@@ -79,15 +79,16 @@ def generator(n, m, yrs):
             rtp = x / SCALE
             ht = h(x, v)
             dh = ht - lasth
-            inputp = rtp[1:pv].reshape([szn])
-            inputdh = dh[1:pv].reshape([n])
-            output = rtp[pv:sz].reshape(szm)
+            inputp = rtp[1:pv].reshape([n, 3])
+            inputdh = dh[1:pv].reshape([n, 1])
+            output = rtp[pv:sz].reshape([m, 3])
             yield year, inputp, inputdh, output
             lasth = ht
 
 
 @data
-@sequential(['ds.p', 'ds.dh'], ['ds.y'], layout_in=[[SIZE, INPUT, 3], [SIZE, INPUT, 1]], layout_out=[[SIZE, OUTPUT, 3]])
+@sequential(['ds.p', 'ds.dh'], ['ds.y'], layouts_in=[[SIZE, INPUT, 3], [SIZE, INPUT, 1]],
+            layouts_out=[[SIZE, OUTPUT, 3]], layout_kinds=['w', 'h', 'c'], kinds_order=['c', 'w', 'h'])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'p', 'dh', 'y')
@@ -231,12 +232,12 @@ learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
 if __name__ == '__main__':
     for epoch in range(10000):
         print('.')
-        learner.learn(dataset(100), dataset(10))
+        learner.learn(dataset(10), dataset(1))
 
     print('--------------------------------')
     errsum = 0.0
     for epoch in range(1000):
-        err = learner.test(dataset(100))
+        err = learner.test(dataset(10))
         print(err)
         errsum += err
 
