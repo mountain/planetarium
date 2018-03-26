@@ -196,7 +196,7 @@ class Model(nn.Module):
 
                 left = state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
                 right = gcurr[:, 2:5, -1, :]
-                result[:, :, i, :] = (left + 2 * right) / 3.0
+                result[:, :, i, :] = (left + right) / 2.0
 
                 update = th.cat([curr, gcurr[:, 1:5, :, :]], dim=3)
                 gate = self.gate(state)[:, :, start:, :]
