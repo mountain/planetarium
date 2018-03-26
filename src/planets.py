@@ -170,12 +170,12 @@ class Model(nn.Module):
                 result[:, :, i, :] = self.posn[:, :, i, INPUT:(INPUT + OUTPUT)]
             else:
                 state = self.state.clone()
-                mu, logvar = self.vae.encode(state)
-                inner = self.vae.reparameterize(mu, logvar)
-                outer = self.vae.decode(inner)
-                self.divrg += vae_loss(outer, Variable(state.data, requires_grad=False), mu, logvar) / WINDOW
-                inner_nxt = self.evolve(inner)
-                state = self.vae.decode(inner_nxt)
+                #mu, logvar = self.vae.encode(state)
+                #inner = self.vae.reparameterize(mu, logvar)
+                #outer = self.vae.decode(inner)
+                #self.divrg += vae_loss(outer, Variable(state.data, requires_grad=False), mu, logvar) / WINDOW
+                #inner_nxt = self.evolve(inner)
+                #state = self.vae.decode(inner_nxt)
 
                 if i < SIZE - WINDOW:
                     start = 0
