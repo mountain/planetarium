@@ -23,7 +23,7 @@ SIZE = 5
 mse = nn.MSELoss()
 
 
-@data
+@data()
 @sequential(['xs.x', 'xs.y'], ['ys.x', 'ys.y'], layout=[WINDOW, SIZE, SIZE])
 @divid(lengths=[WINDOW, WINDOW], names=['xs', 'ys'])
 @segment(segment_size=2*WINDOW)

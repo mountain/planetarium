@@ -22,7 +22,7 @@ ones = np.ones([SIZE, SIZE])
 mse = nn.MSELoss()
 
 
-@data
+@data()
 @sequential(['xs.dt', 'xs.x', 'xs.y'], ['xs.dt', 'ys.x', 'ys.y'], layout=[WINDOW, SIZE, SIZE])
 @divid(lengths=[WINDOW, WINDOW], names=['xs', 'ys'])
 @segment(segment_size=2*WINDOW)

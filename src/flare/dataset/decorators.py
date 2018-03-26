@@ -346,11 +346,16 @@ def debug():
     return wrapper
 
 
-def data(f):
-    def wrapped(*args, **kwargs):
-        for result in f(*args, **kwargs):
-            result.reorder()
-            yield [(result.data_input, result.data_output)]
-    return wrapped
+def data(swap=None):
+    def wrapper(f):
+        def wrapped(*args, **kwargs):
+            for result in f(*args, **kwargs):
+                if swap is None:
+                    yield [(result.data_input, result.data_output)]
+                else:
+                    idx = range(len(swap))
+                    yield [(np.moveaxis(result.data_input, idx, swap), np.moveaxis(result.data_output, idx, swap))]
+        return wrapped
 
+    return wrapper
 

@@ -15,7 +15,7 @@ from flare.dataset.decorators import discrete, data
 mse = nn.MSELoss()
 
 
-@data
+@data()
 @discrete(['x1', 'x2'], ['x3'])
 def dataset(n):
     return generator(xor, n)

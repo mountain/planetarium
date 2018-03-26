@@ -10,6 +10,7 @@ from torch.autograd import Variable
 import flare.pipe as fp
 import flare.util.iter as fui
 
+
 def cast(element):
     element = np.array(element, dtype=np.float32)
     if th.cuda.is_available():
@@ -90,6 +91,8 @@ class BaseLearner():
         elif data_type == dict:
             return fp.batches(data, pick=self.picker, batch_size=batch)
         elif data_type == types.GeneratorType:
+            return fp.batches(data, pick=fp.pick_value, batch_size=batch)
+        elif data_type == types.FunctionType:
             return fp.batches(data, pick=fp.pick_value, batch_size=batch)
 
     def test(self, dataset):
@@ -291,7 +294,8 @@ class SpecialTemporalLearner(BaseLearner):
             if chs == bfc:
                 output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:bfc])
             else:
-                output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:bfc], sxfs=xs[:, bfc:chs], syfs=ys[:, bfc:chs])
+                output = self.predict(xs[:, 0::chs], ys[:, 0::chs], xs[:, 1:bfc], sxfs=xs[:, bfc:chs],
+                                      syfs=ys[:, bfc:chs])
             if 'model' in dir(self):
                 l = self.loss(xs[:, 1:chs], ys[:, 1:chs], output, model=self.model)
             else:

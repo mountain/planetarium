@@ -81,27 +81,19 @@ def generator(n, m, yrs):
             dh = ht - lasth
             inputp = rtp[1:pv].reshape([n, 3])
             inputdh = dh[1:pv].reshape([n, 1])
-            output = rtp[pv:sz].reshape([m, 3])
-            yield year, inputp, inputdh, output
+            input = np.concatenate([inputp, inputdh], axis=1).reshape([n * 4])
+            output = rtp[pv:sz].reshape([m * 3])
+            yield year, input, output
             lasth = ht
 
 
-@data
-@sequential(['ds.p', 'ds.dh'], ['ds.y'], layouts_in=[[SIZE, INPUT, 3], [SIZE, INPUT, 1]],
-            layouts_out=[[SIZE, OUTPUT, 3]], layout_kinds=['w', 'h', 'c'], kinds_order=['c', 'w', 'h'])
+@data(swap=[2, 0, 1])
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 4], layout_out=[SIZE, OUTPUT, 3])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
-@attributes('yr', 'p', 'dh', 'y')
+@attributes('yr', 'x', 'y')
 def dataset(n):
     return generator(INPUT, OUTPUT, SIZE * n)
-
-
-class Permutation(nn.Module):
-    def __init__(self):
-        super(Permutation, self).__init__()
-
-    def forward(self, x):
-        return x.permute(0, 2, 1)
 
 
 class Model(nn.Module):

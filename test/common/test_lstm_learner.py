@@ -21,7 +21,7 @@ SIZE = 3
 mse = nn.MSELoss()
 
 
-@data
+@data()
 @discrete(['u.x', 'u.y'], ['v.x', 'v.y'], layout=[SIZE, SIZE])
 @attributes('u', 'v')
 @window(2)
