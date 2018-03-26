@@ -45,8 +45,11 @@ class VAE(nn.Module):
 
 
 mse = nn.MSELoss()
-
+bce = nn.BCELoss()
+kld = nn.KLDivLoss()
 
 def vae_loss(recon_x, x, mu, logvar):
-    kld = - 0.5 * th.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return mse(recon_x, x) + kld
+    var = logvar.exp()
+    dist = th.distributions.Normal(mu, var).sample()
+    unit = th.distributions.Normal(mu * 0.0, var.pow(0)).sample()
+    return bce(th.sigmoid(recon_x), th.sigmoid(x)) + kld(dist, unit)

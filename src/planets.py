@@ -36,7 +36,7 @@ epsilon = 0.00001
 SCALE = 50.0
 MSCALE = 500.0
 
-BATCH = 5
+BATCH = 3
 SIZE = 18
 WINDOW = 6
 INPUT = 4
@@ -53,8 +53,6 @@ def generator(n, m, yrs):
     m = int(m)
     pv = int(n + 1)
     sz = int(n + m + 1)
-    szn = int(3 * n)
-    szm = int(3 * m)
     mass = xp.array(xp.random.rand(sz) / MSCALE, dtype=np.float)
     mass[0] = 1.0
 
@@ -79,16 +77,20 @@ def generator(n, m, yrs):
             rtp = x / SCALE
             ht = h(x, v)
             dh = ht - lasth
+            inputm = mass[1:INPUT+1].reshape([n, 1])
             inputp = rtp[1:pv].reshape([n, 3])
             inputdh = dh[1:pv].reshape([n, 1])
-            input = np.concatenate([inputp, inputdh], axis=1).reshape([n * 4])
-            output = rtp[pv:sz].reshape([m * 3])
+            input = np.concatenate([inputm, inputdh, inputp], axis=1).reshape([n * 5])
+
+            outputm = mass[INPUT+1:].reshape([m, 1])
+            outputp = rtp[pv:sz].reshape([m, 3])
+            output = np.concatenate([outputm, outputp], axis=1).reshape([m * 4])
             yield year, input, output
             lasth = ht
 
 
-@data(swap=[2, 0, 1])
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 4], layout_out=[SIZE, OUTPUT, 3])
+@data(swap=[0, 2, 3, 4, 1])
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
@@ -109,58 +111,65 @@ class Model(nn.Module):
             ResidualBlock2D(256),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
-            nn.Conv2d(256, 6, kernel_size=3, padding=1),
+            nn.Conv2d(256, 5, kernel_size=3, padding=1),
+            nn.AvgPool2d((1, 2), stride=(1, 2)),
+            nn.Tanh(),
         )
 
         self.evolve = nn.Sequential(
-            nn.Conv2d(4, 256, kernel_size=3, padding=1),
+            nn.Tanh(),
+            nn.Conv2d(2, 256, kernel_size=3, padding=1),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
-            nn.Conv2d(256, 4, kernel_size=3, padding=1),
+            nn.Conv2d(256, 2, kernel_size=3, padding=1),
+            nn.Sigmoid(),
         )
         self.vae = VAE(4, 256, 2)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
 
-    def forward(self, p, dh):
-        windowi = WINDOW * INPUT * self.batch
-        window = WINDOW * (INPUT + OUTPUT) * self.batch
+    def forward(self, x):
+        x = th.squeeze(x, dim=2)
+        m = x[:, 0:1, :, :]
+        dh = x[:, 1:2, :, :]
+        p = x[:, 2:5, :, :]
 
-        result = Variable(th.zeros(self.batch, 3, SIZE, (INPUT + OUTPUT)))
+        result = Variable(th.zeros(self.batch, 3, SIZE, OUTPUT))
         self.merror = Variable(th.zeros(self.batch, 1, 1, 1))
-        self.error = Variable(th.zeros(self.batch, 1, 1, 1))
         self.divrg = Variable(th.zeros(self.batch, 1, 1, 1))
 
+        init_m = m[:, :, 0:WINDOW, :]
         init_p = p[:, :, 0:WINDOW, :]
         init_dh = dh[:, :, 0:WINDOW, :]
-        init = th.cat((init_p, init_dh), dim=1).view(windowi * 4)
+        init = th.cat((init_p, init_dh), dim=1)
 
-        guess = self.guess(init).view(self.batch, 6, WINDOW, OUTPUT)
+        guess = self.guess(init)
+        guess = guess.view(self.batch, 5, WINDOW, OUTPUT)
         gmass = guess[:, 0:1, :, :]
-        gposn = guess[:, 1:4, :, :]
-        gdelh = guess[:, 4:6, :, :]
+        gdelh = guess[:, 1:2, :, :]
+        gposn = guess[:, 2:5, :, :]
 
-        self.mass = th.cat((self.omass, gmass), dim=1)
-        self.posn = th.cat((init_p, gposn), dim=1)
-        self.delh = th.cat((init_dh, gdelh), dim=1)
+        self.tmass = m
+        self.gmass = th.cat((init_m, gmass), dim=3)
+        self.posn = th.cat((init_p, gposn), dim=3)
+        self.delh = th.cat((init_dh, gdelh), dim=3)
         self.state = th.cat((self.posn, self.delh), dim=1)
 
         for i in range(SIZE):
             if i < WINDOW:
-                result[:, :, i, :] = init_p[:, :, i, :]
+                result[:, :, i, :] = self.posn[:, :, i, INPUT:(INPUT + OUTPUT)]
             else:
-                state = self.state.view(window * 4)
+                state = self.state.clone()
                 mu, logvar = self.vae.encode(state)
                 inner = self.vae.reparameterize(mu, logvar)
                 outer = self.vae.decode(inner)
-                self.divrg += vae_loss(self.batch, window * 5, outer, Variable(state.data, requires_grad=False), mu, logvar)
+                self.divrg += vae_loss(outer, Variable(state.data, requires_grad=False), mu, logvar)
 
-                inner_nxt = self.evolve(inner, dim=2)
-                outer_nxt = self.vae.decode(inner_nxt)
-                self.state = outer_nxt.view(WINDOW, (INPUT + OUTPUT), 4)
-                result[:, :, i, :] = self.state[:, 0:3, i, :]
+                inner_nxt = self.evolve(inner)
+                self.state = self.vae.decode(inner_nxt)
+                result[:, :, i, :] = self.state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
 
         return result
 
@@ -183,40 +192,45 @@ def loss(xs, ys, result):
     global counter
     counter = counter + 1
 
-    lss = mse(result, ys)
+    ms = ys[:, 0:1, 0, :, :]
+    ps = ys[:, 1:4, 0, :, :]
+
+    lss = mse(result, ps)
+    merror = mse(model.gmass, ms)
     print('-----------------------------')
     print('loss:', th.max(lss.data))
-    print('error:', th.max(model.error.data))
     print('divrg:', th.max(model.divrg.data))
-    print('merror:', th.max(model.merror.data))
+    print('merror:', th.max(merror.data))
     print('-----------------------------')
     sys.stdout.flush()
 
     if counter % 1 == 0:
-        input = xs.data.numpy().reshape([SIZE, INPUT, 4])
-        truth = ys.data.numpy().reshape([SIZE, OUTPUT, 3])
-        guess = result.data.numpy().reshape([SIZE, OUTPUT, 3])
-        gmass = model.gmass[0, 0, :].data.numpy()
+        input = xs.data.numpy().reshape([model.batch, 5, SIZE, INPUT])[0, 2:5, :, :]
+        truth = ps.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
+        guess = result.data.numpy().reshape([model.batch, SIZE, OUTPUT, 3])[0, :, :, :]
+        gmass = model.gmass[0, 0, 0, :].data.numpy()
+        tmass = model.tmass[0, 0, 0, :].data.numpy()
+        mass = ms[0, 0, 0, :].data.numpy()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(input[:, 0, 0], input[:, 0, 1], input[:, 0, 2], 'o', markersize=mass[1] * 3000)
-        ax.plot(input[:, 1, 0], input[:, 1, 1], input[:, 1, 2], 'o', markersize=mass[2] * 3000)
-        ax.plot(input[:, 2, 0], input[:, 2, 1], input[:, 2, 2], 'o', markersize=mass[3] * 3000)
-        ax.plot(input[:, 3, 0], input[:, 3, 1], input[:, 3, 2], 'o', markersize=mass[4] * 3000)
+        ax.plot(input[0, :, 0], input[1, :, 0], input[2, :, 0], 'o', markersize=tmass[0] * 3000)
+        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=tmass[1] * 3000)
+        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=tmass[2] * 3000)
+        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=tmass[3] * 3000)
         plt.savefig('data/obsv.png')
         plt.close()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(truth[:, 0, 0], truth[:, 0, 1], truth[:, 0, 2], 'ro', markersize=mass[5] * 3000)
-        ax.plot(truth[:, 1, 0], truth[:, 1, 1], truth[:, 1, 2], 'bo', markersize=mass[6] * 3000)
-        ax.plot(guess[:, 0, 0], guess[:, 0, 1], guess[:, 0, 2], 'r+', markersize=gmass[4] * 3000)
-        ax.plot(guess[:, 1, 0], guess[:, 1, 1], guess[:, 1, 2], 'b+', markersize=gmass[5] * 3000)
+        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=mass[0] * 3000)
+        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=mass[1] * 3000)
+        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 3000)
+        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 3000)
         plt.savefig('data/pred.png')
         plt.close()
 
-    return lss + model.error + model.divrg + model.merror
+    return th.sum(lss + model.divrg + merror)
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
