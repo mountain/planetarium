@@ -28,6 +28,7 @@ from flare.nn.residual import ResidualBlock2D
 from flare.nn.vae import VAE, vae_loss
 
 from flare.learner import StandardLearner
+from flare.nn.lstm import ConvLSTM
 from flare.dataset.decorators import attributes, segment, divid, sequential, data
 
 
@@ -116,27 +117,12 @@ class Model(nn.Module):
             nn.Tanh(),
         )
 
-        self.gate = nn.Sequential(
-            nn.Conv2d(4, 256, kernel_size=3, padding=1),
-            ResidualBlock2D(256),
-            ResidualBlock2D(256),
-            ResidualBlock2D(256),
-            nn.Conv2d(256, 1, kernel_size=3, padding=1),
-            nn.Sigmoid(),
-        )
-
-        self.evolve = nn.Sequential(
-            nn.Conv2d(3, 256, kernel_size=3, padding=1),
-            ResidualBlock2D(256),
-            ResidualBlock2D(256),
-            ResidualBlock2D(256),
-            nn.Conv2d(256, 3, kernel_size=3, padding=1),
-            nn.Sigmoid(),
-        )
-        self.vae = VAE(4, 256, 3)
+        self.lstm = ConvLSTM(4, 4, 3, padding=1, width=WINDOW, height=(INPUT + OUTPUT), bsize=self.batch)
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
+        self.lstm.batch_size_changed(new_val, orig_val)
+        self.lstm.reset()
 
     def forward(self, x):
         x = th.squeeze(x, dim=2)
@@ -165,42 +151,30 @@ class Model(nn.Module):
         self.delh = th.cat((init_dh, gdelh), dim=3)
         self.state = th.cat((self.posn, self.delh), dim=1)
 
+        self.lstm.reset()
+
         for i in range(SIZE):
             if i < WINDOW:
                 result[:, :, i, :] = self.posn[:, :, i, INPUT:(INPUT + OUTPUT)]
             else:
-                state = self.state.clone()
-                #mu, logvar = self.vae.encode(state)
-                #inner = self.vae.reparameterize(mu, logvar)
-                #outer = self.vae.decode(inner)
-                #self.divrg += vae_loss(outer, Variable(state.data, requires_grad=False), mu, logvar) / WINDOW
-                #inner_nxt = self.evolve(inner)
-                #state = self.vae.decode(inner_nxt)
+                self.state = self.lstm(self.state)
 
                 if i < SIZE - WINDOW:
-                    start = 0
                     curr_p = p[:, :, i:i+WINDOW, :]
                     curr_dh = dh[:, :, i:i+WINDOW, :]
                     curr = th.cat((curr_p, curr_dh), dim=1)
                     gcurr = self.guess(curr)
                     gcurr = gcurr.view(self.batch, 5, WINDOW, OUTPUT)
                 else:
-                    start = WINDOW + i - SIZE
-                    if start > 0:
-                        start = 1
                     curr_p = p[:, :, i:SIZE, :]
                     curr_dh = dh[:, :, i:SIZE, :]
                     curr = th.cat((curr_p, curr_dh), dim=1)
                     gcurr = self.guess(curr)
                     gcurr = gcurr.view(self.batch, 5, SIZE - i, OUTPUT)
 
-                left = state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
+                left = self.state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
                 right = gcurr[:, 2:5, -1, :]
                 result[:, :, i, :] = (left + right) / 2.0
-
-                update = th.cat([curr, gcurr[:, 1:5, :, :]], dim=3)
-                gate = self.gate(state)[:, :, start:, :]
-                self.state = (1 - gate) * state[:, :, start:, :] + gate * update
 
         return result
 
