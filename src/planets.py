@@ -117,6 +117,16 @@ class Model(nn.Module):
             nn.Tanh(),
         )
 
+        self.transform = nn.Sequential(
+            nn.Tanh(),
+            nn.Conv2d(4, 256, kernel_size=3, padding=1),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            ResidualBlock2D(256),
+            nn.Conv2d(256, 3, kernel_size=3, padding=1),
+            nn.Tanh(),
+        )
+
         self.lstm = ConvLSTM(4, 4, 3, padding=1, width=WINDOW, height=(INPUT + OUTPUT), bsize=self.batch)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -154,27 +164,8 @@ class Model(nn.Module):
         self.lstm.reset()
 
         for i in range(SIZE):
-            if i < WINDOW:
-                result[:, :, i, :] = self.posn[:, :, i, INPUT:(INPUT + OUTPUT)]
-            else:
-                self.state = self.lstm(self.state)
-
-                if i < SIZE - WINDOW:
-                    curr_p = p[:, :, i:i+WINDOW, :]
-                    curr_dh = dh[:, :, i:i+WINDOW, :]
-                    curr = th.cat((curr_p, curr_dh), dim=1)
-                    gcurr = self.guess(curr)
-                    gcurr = gcurr.view(self.batch, 5, WINDOW, OUTPUT)
-                else:
-                    curr_p = p[:, :, i:SIZE, :]
-                    curr_dh = dh[:, :, i:SIZE, :]
-                    curr = th.cat((curr_p, curr_dh), dim=1)
-                    gcurr = self.guess(curr)
-                    gcurr = gcurr.view(self.batch, 5, SIZE - i, OUTPUT)
-
-                left = self.state[:, 0:3, -1, INPUT:(INPUT + OUTPUT)]
-                right = gcurr[:, 2:5, -1, :]
-                result[:, :, i, :] = (left + right) / 2.0
+            self.state = self.lstm(self.state)
+            result[:, :, i, :] = self.transform(self.state[:, :, :, INPUT:(INPUT + OUTPUT)])[:, :, -1, :]
 
         return result
 
