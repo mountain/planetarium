@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
 
-from flare.learner import StandardLearner
+from flare.learner import StandardLearner, cast
 from flare.nn.lstm import ConvLSTM
 from flare.nn.senet import PreActBlock
 from flare.dataset.decorators import attributes, segment, divid, sequential, data
@@ -340,11 +340,16 @@ def loss(xs, ys, result):
     ms = ys[:, 0:1, 0, :, :]
     ps = ys[:, 1:4, 0, :, :]
 
+    sizes = tuple(ps.size())
+    rnd = Variable(cast(SCALE / 2.0 * (2 * xp.random.rand(*sizes) - 1)))
+    bsln = mse(transform(rnd), transform(ps))
+
     lss = mse(transform(result), transform(ps))
     merror = mse(model.gmass, ms)
     print('-----------------------------')
     print('loss:', th.max(lss.data))
-    print('merror:', th.max(merror.data))
+    print('merr:', th.max(merror.data))
+    print('bsln:', th.max(bsln.data))
     print('-----------------------------')
     sys.stdout.flush()
 
