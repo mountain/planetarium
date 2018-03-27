@@ -342,7 +342,7 @@ def loss(xs, ys, result):
 
     sizes = tuple(ps.size())
     rnd = Variable(cast(SCALE / 2.0 * (2 * xp.random.rand(*sizes) - 1)))
-    bsln = mse(transform(rnd), transform(ps))
+    bsln = mse(transform(rnd), transform(ps.clone()))
 
     lss = mse(transform(result), transform(ps))
     merror = mse(model.gmass, ms)
