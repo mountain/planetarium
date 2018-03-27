@@ -114,6 +114,7 @@ class Model(nn.Module):
             ResidualBlock2D(256),
             nn.Conv2d(256, 5, kernel_size=3, padding=1),
             nn.AvgPool2d((1, 2), stride=(1, 2)),
+            nn.Conv2d(5, 5, kernel_size=3, padding=1),
             nn.Tanh(),
         )
 
@@ -124,6 +125,8 @@ class Model(nn.Module):
             ResidualBlock2D(256),
             nn.Conv2d(256, 3, kernel_size=3, padding=1),
             nn.AvgPool2d((6, 3), stride=(6, 3)),
+            nn.Conv2d(3, 3, kernel_size=3, padding=1),
+            nn.Tanh(),
         )
 
         self.lstm = ConvLSTM(4, 4, 3, padding=1, width=WINDOW, height=(INPUT + OUTPUT), bsize=self.batch)
