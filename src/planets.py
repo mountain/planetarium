@@ -204,7 +204,6 @@ def loss(xs, ys, result):
     merror = mse(model.gmass, ms)
     print('-----------------------------')
     print('loss:', th.max(lss.data))
-    print('divrg:', th.max(model.divrg.data))
     print('merror:', th.max(merror.data))
     print('-----------------------------')
     sys.stdout.flush()
