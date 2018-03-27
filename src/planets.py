@@ -374,7 +374,7 @@ def loss(xs, ys, result):
         plt.savefig('data/pred.png')
         plt.close()
 
-    return th.sum(lss + merror)
+    return th.sum(lss + merror / 50)
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
