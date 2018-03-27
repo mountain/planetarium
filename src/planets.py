@@ -145,7 +145,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(4, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(5, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -180,7 +180,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(8, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(9, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -215,7 +215,7 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(8, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(9, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -249,7 +249,7 @@ class Gate(nn.Module):
     def __init__(self):
         super(Gate, self).__init__()
         self.batch = BATCH
-        self.lstm = ConvLSTM(8, 8, 3, width=WINDOW, height=(INPUT + OUTPUT), padding=1, bsize=BATCH)
+        self.lstm = ConvLSTM(9, 8, 3, width=WINDOW, height=(INPUT + OUTPUT), padding=1, bsize=BATCH)
         self.linear = nn.Linear(576, 6)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -307,11 +307,12 @@ class Model(nn.Module):
         self.posn = th.cat((init_p, gposn), dim=3)
         self.delh = th.cat((init_dh, gdelh), dim=3)
 
-        self.state = self.encode(th.cat((self.posn, self.delh), dim=1))
+        self.state = self.encode(th.cat((self.gmass, self.posn, self.delh), dim=1))
         for i in range(SIZE):
-            self.state = self.evolve(self.state)
-            gate = self.gate(self.state)
-            target = gate * self.decode(self.state)
+            envr = th.cat((self.gmass, self.state), dim=1)
+            self.state = self.evolve(envr)
+            gate = self.gate(envr)
+            target = gate * self.decode(envr)
             result[:, :, i::SIZE, :] = target
             print('currt:', th.max(target.data), th.min(target.data), th.mean(target.data))
             sys.stdout.flush()
