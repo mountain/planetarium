@@ -108,7 +108,6 @@ class Model(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
         self.guess = nn.Sequential(
-            nn.Tanh(),
             nn.Conv2d(4, 256, kernel_size=3, padding=1),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
@@ -119,13 +118,12 @@ class Model(nn.Module):
         )
 
         self.transform = nn.Sequential(
-            nn.Tanh(),
             nn.Conv2d(4, 256, kernel_size=3, padding=1),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
             ResidualBlock2D(256),
             nn.Conv2d(256, 3, kernel_size=3, padding=1),
-            nn.Tanh(),
+            nn.AvgPool2d((6, 3), stride=(6, 3)),
         )
 
         self.lstm = ConvLSTM(4, 4, 3, padding=1, width=WINDOW, height=(INPUT + OUTPUT), bsize=self.batch)
@@ -165,7 +163,7 @@ class Model(nn.Module):
         self.lstm.reset()
         for i in range(SIZE):
             self.state = self.lstm(self.state)
-            result[:, :, i::SIZE, :] = self.transform(self.state[:, :, -1::SIZE, INPUT:(INPUT + OUTPUT)])
+            result[:, :, i::SIZE, :] = self.transform(self.state)
 
         return result
 
