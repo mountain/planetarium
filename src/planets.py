@@ -106,33 +106,27 @@ def dataset(n):
 
 
 class Guess(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=120):
+    def __init__(self, num_classes=120):
         super(Guess, self).__init__()
-        self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(4, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(2048, num_classes)
+        self.normal = nn.BatchNorm1d(192)
+        self.layer1 = self._make_layer(192, 256)
+        self.layer2 = self._make_layer(256, 512)
+        self.layer3 = self._make_layer(512, 1024)
+        self.linear = nn.Linear(1024, num_classes)
 
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes
-        return nn.Sequential(*layers)
+    def _make_layer(self, num_in, num_out):
+        return nn.Sequential(
+            nn.Linear(num_in, num_out),
+            nn.ReLU(),
+        )
 
     def forward(self, x):
-        x = th.cat((x, x, x), dim=3)
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = x.view(x.size(0), -1)
+        out = self.normal(out)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
-        out = self.layer4(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 5, 12, 2)
@@ -141,33 +135,27 @@ class Guess(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=576):
+    def __init__(self, num_classes=576):
         super(Encoder, self).__init__()
-        self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(5, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(3072, num_classes)
+        self.normal = nn.BatchNorm1d(360)
+        self.layer1 = self._make_layer(360, 512)
+        self.layer2 = self._make_layer(512, 1024)
+        self.layer3 = self._make_layer(1024, 2048)
+        self.linear = nn.Linear(2048, num_classes)
 
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes
-        return nn.Sequential(*layers)
+    def _make_layer(self, num_in, num_out):
+        return nn.Sequential(
+            nn.Linear(num_in, num_out),
+            nn.ReLU(),
+        )
 
     def forward(self, x):
-        x = th.cat((x, x, x), dim=3)
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = x.view(x.size(0), -1)
+        out = self.normal(out)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
-        out = self.layer4(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 8, 12, 6)
@@ -176,33 +164,27 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=6):
+    def __init__(self, num_classes=6):
         super(Decoder, self).__init__()
-        self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(9, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(3072, num_classes)
+        self.normal = nn.BatchNorm1d(648)
+        self.layer1 = self._make_layer(648, 1024)
+        self.layer2 = self._make_layer(1024, 2048)
+        self.layer3 = self._make_layer(2048, 2048)
+        self.linear = nn.Linear(2048, num_classes)
 
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes
-        return nn.Sequential(*layers)
+    def _make_layer(self, num_in, num_out):
+        return nn.Sequential(
+            nn.Linear(num_in, num_out),
+            nn.ReLU(),
+        )
 
     def forward(self, x):
-        x = th.cat((x, x, x), dim=3)
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = x.view(x.size(0), -1)
+        out = self.normal(out)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
-        out = self.layer4(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, 2)
@@ -211,33 +193,27 @@ class Decoder(nn.Module):
 
 
 class Evolve(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=576):
+    def __init__(self, num_classes=576):
         super(Evolve, self).__init__()
-        self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(9, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.layer1 = self._make_layer(block,  64, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        self.linear = nn.Linear(3072, num_classes)
+        self.normal = nn.BatchNorm1d(648)
+        self.layer1 = self._make_layer(648, 1024)
+        self.layer2 = self._make_layer(1024, 2048)
+        self.layer3 = self._make_layer(2048, 2048)
+        self.linear = nn.Linear(2048, num_classes)
 
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes
-        return nn.Sequential(*layers)
+    def _make_layer(self, num_in, num_out):
+        return nn.Sequential(
+            nn.Linear(num_in, num_out),
+            nn.ReLU(),
+        )
 
     def forward(self, x):
-        x = th.cat((x, x, x), dim=3)
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = x.view(x.size(0), -1)
+        out = self.normal(out)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
-        out = self.layer4(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 8, 12, 6)
@@ -248,17 +224,25 @@ class Evolve(nn.Module):
 class Gate(nn.Module):
     def __init__(self):
         super(Gate, self).__init__()
-        self.batch = BATCH
-        self.lstm = ConvLSTM(9, 8, 3, width=WINDOW, height=(INPUT + OUTPUT), padding=1, bsize=BATCH)
-        self.linear = nn.Linear(576, 6)
 
-    def batch_size_changed(self, new_val, orig_val):
-        self.batch = new_val
-        self.lstm.batch_size_changed(new_val, orig_val)
-        self.lstm.reset()
+        self.normal = nn.BatchNorm1d(648)
+        self.layer1 = self._make_layer(648, 1024)
+        self.layer2 = self._make_layer(1024, 2048)
+        self.layer3 = self._make_layer(2048, 2048)
+        self.linear = nn.Linear(2048, 6)
+
+    def _make_layer(self, num_in, num_out):
+        return nn.Sequential(
+            nn.Linear(num_in, num_out),
+            nn.ReLU(),
+        )
 
     def forward(self, x):
-        out = self.lstm(F.sigmoid(x))
+        out = x.view(x.size(0), -1)
+        out = self.normal(out)
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, 2)
@@ -272,15 +256,14 @@ class Model(nn.Module):
         self.batch = bsize
         self.omass = omass
 
-        self.guess = Guess(PreActBlock, [2, 2, 2, 2])
-        self.encode = Encoder(PreActBlock, [1, 1, 1, 1])
-        self.decode = Decoder(PreActBlock, [1, 1, 1, 1])
-        self.evolve = Evolve(PreActBlock, [2, 2, 2, 2])
+        self.guess = Guess()
+        self.encode = Encoder()
+        self.decode = Decoder()
+        self.evolve = Evolve()
         self.gate = Gate()
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
-        self.gate.batch_size_changed(new_val, orig_val)
 
     def forward(self, x):
         x = th.squeeze(x, dim=2)
