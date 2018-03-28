@@ -26,8 +26,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
-from flare.nn.lstm import ConvLSTM
-from flare.nn.senet import PreActBlock
 from flare.dataset.decorators import attributes, segment, divid, sequential, data
 
 
@@ -44,17 +42,42 @@ OUTPUT = 2
 
 
 mass = None
+sun = None
 
 
-def transform(x):
-    r = th.sqrt(x[:, 0] * x[:, 0] + x[:, 1] * x[:, 1] + x[:, 2] * x[:, 2])
-    phi = th.atan2(x[:, 0], x[:, 1]) / np.pi / 2.0 + 0.5
-    theta = th.acos(x[:, 2] / r) / np.pi
-    return th.cat((r / SCALE, theta, phi), dim=1)
+def divergence(xs, ys):
+    xs = xs - sun
+    ys = ys - sun
+    rx = np.linalg.norm(xs)
+    ry = np.linalg.norm(ys)
+    ux = xs / rx
+    uy = ys / ry
+    da = np.empty(ux.shape[0])
+    for i in range(ux.shape[0]):
+        da[i] = 1 - np.dot(ux[i], uy[i].T)
+    dr = (rx - ry) * (rx - ry)
+    return np.sum(da + dr)
+
+
+def divergence_th(xs, ys):
+    sz = xs.size()
+    b = sz[0] * sz[2] * sz[3]
+    s = Variable(cast(sun), requires_grad = False)
+    xs = xs.permute(0, 2, 3, 1).contiguous().view(b, 3)
+    ys = ys.permute(0, 2, 3, 1).contiguous().view(b, 3)
+    xs = xs - s
+    ys = ys - s
+    rx = th.norm(xs, p=2, dim=1).view(b, 1)
+    ry = th.norm(ys, p=2, dim=1).view(b, 1)
+    ux = xs / rx
+    uy = ys / ry
+    da = th.bmm(ux.view(b, 1, 3), uy.view(b, 3, 1))
+    dr = (rx - ry) * (rx - ry)
+    return th.sum(da + dr, dim=1)
 
 
 def generator(n, m, yrs):
-    global mass
+    global mass, sun
 
     n = int(n)
     m = int(m)
@@ -84,6 +107,9 @@ def generator(n, m, yrs):
             rtp = x / SCALE
             ht = h(x, v)
             dh = ht - lasth
+
+            sun = rtp[0:1].reshape([1, 3])
+
             inputm = mass[1:INPUT+1].reshape([n, 1]) * MSCALE
             inputp = rtp[1:pv].reshape([n, 3])
             inputdh = dh[1:pv].reshape([n, 1])
@@ -306,7 +332,7 @@ class Model(nn.Module):
 mse = nn.MSELoss()
 
 model = Model(bsize=BATCH)
-optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=1e-8)
 
 
 def predict(xs):
@@ -326,9 +352,13 @@ def loss(xs, ys, result):
 
     sizes = tuple(ps.size())
     rnd = Variable(cast(SCALE / 2.0 * (2 * xp.random.rand(*sizes) - 1)))
-    bsln = mse(transform(rnd), transform(ps.clone()))
 
-    lss = mse(transform(result), transform(ps))
+    div = divergence_th(rnd, ps.clone())
+    sizes = tuple(div.size())
+    zeros = Variable(th.zeros(*sizes), requires_grad=False)
+    bsln = mse(div, zeros)
+    div = divergence_th(result, ps)
+    lss = mse(div, zeros)
     merror = mse(model.gmass, ms)
     print('-----------------------------')
     print('loss:', th.max(lss.data))
