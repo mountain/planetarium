@@ -306,7 +306,7 @@ class Model(nn.Module):
 mse = nn.MSELoss()
 
 model = Model(bsize=BATCH)
-optimizer = optim.Adam(model.parameters(), lr=1)
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
 
 
 def predict(xs):
