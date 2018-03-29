@@ -391,7 +391,7 @@ def loss(xs, ys, result):
     print('-----------------------------')
     sys.stdout.flush()
 
-    if counter % 1 == 0:
+    if counter % 10 == 0:
         input = xs.data.numpy().reshape([model.batch, 5, SIZE, INPUT])[0, 2:5, :, :]
         truth = ps.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
         guess = result.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
