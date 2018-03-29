@@ -321,8 +321,8 @@ class Model(nn.Module):
         dh = x[:, 1:2, :, :]
         p = x[:, 2:5, :, :]
 
-        result = Variable(th.zeros(self.batch, 3, SIZE, OUTPUT))
-        self.merror = Variable(th.zeros(self.batch, 1, 1, 1))
+        result = Variable(cast(np.zeros([self.batch, 3, SIZE, OUTPUT])))
+        self.merror = Variable(cast(np.zeros([self.batch, 1, 1, 1])))
 
         init_m = m[:, :, 0:WINDOW, :]
         init_p = p[:, :, 0:WINDOW, :]
@@ -381,9 +381,11 @@ def loss(xs, ys, result):
     sizes = tuple(div.size())
     zeros = Variable(cast(np.zeros(sizes)), requires_grad=False)
     bsln = mse(div, zeros)
+
     div = divergence_th(result, ps)
     lss = mse(div, zeros)
     merror = mse(model.gmass, ms)
+
     print('-----------------------------')
     print('loss:', th.max(th.sqrt(lss).data))
     print('merr:', th.max(th.sqrt(merror).data))
