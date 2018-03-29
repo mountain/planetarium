@@ -389,8 +389,9 @@ def loss(xs, ys, result):
     merror = mse(model.gmass, ms)
 
     print('-----------------------------')
-    print('lss:', th.max(th.sqrt(lss).data))
-    print('mer:', th.max(th.sqrt(merror).data))
+    print('lss:', th.mean(th.sqrt(lss).data))
+    print('mer:', th.mean(th.sqrt(merror).data))
+    print('ttl:', th.mean(th.sqrt(lss + merror / 50).data))
     print('-----------------------------')
     sys.stdout.flush()
 
@@ -431,7 +432,7 @@ def loss(xs, ys, result):
         plt.savefig('data/pred.png')
         plt.close()
 
-    return th.sum(lss + merror / 50)
+    return th.mean(lss + merror / 50)
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
