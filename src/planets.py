@@ -397,13 +397,17 @@ def loss(xs, ys, result):
         if th.cuda.is_available():
             input = xs.data.cpu().numpy().reshape([model.batch, 5, SIZE, INPUT])[0, 2:5, :, :]
             truth = ps.data.cpu().numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
+            guess = result.data.cpu().numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
+            mass = ms[0, 0, 0, :].data.cpu().numpy()
+            gmass = model.gmass[0, 0, 0, :].data.cpu().numpy()
+            tmass = model.tmass[0, 0, 0, :].data.cpu().numpy()
         else:
             input = xs.data.numpy().reshape([model.batch, 5, SIZE, INPUT])[0, 2:5, :, :]
             truth = ps.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
-        guess = result.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
-        gmass = model.gmass[0, 0, 0, :].data.numpy()
-        tmass = model.tmass[0, 0, 0, :].data.numpy()
-        mass = ms[0, 0, 0, :].data.numpy()
+            guess = result.data.numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
+            mass = ms[0, 0, 0, :].data.numpy()
+            gmass = model.gmass[0, 0, 0, :].data.numpy()
+            tmass = model.tmass[0, 0, 0, :].data.numpy()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
