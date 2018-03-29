@@ -43,6 +43,7 @@ WINDOW = 12
 INPUT = 4
 OUTPUT = 2
 
+lr = 1e-5
 
 mass = None
 sun = None
@@ -148,7 +149,7 @@ def generator(n, m, yrs):
             lasth = ht
 
 
-@shuffle(shufflefn, repeat=360)
+@shuffle(shufflefn, repeat=600)
 @data(swap=[0, 2, 3, 4, 1])
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
@@ -350,8 +351,8 @@ class Model(nn.Module):
             gate = self.gate(envr)
             target = gate * self.decode(envr)
             result[:, :, i::SIZE, :] = target
-            print('currt:', th.max(target.data), th.min(target.data), th.mean(target.data))
-            sys.stdout.flush()
+            #print('currt:', th.max(target.data), th.min(target.data), th.mean(target.data))
+            #sys.stdout.flush()
 
         return result
 
@@ -383,18 +384,18 @@ def loss(xs, ys, result):
     div = divergence_th(rnd, ps.clone())
     sizes = tuple(div.size())
     zeros = Variable(cast(np.zeros(sizes)), requires_grad=False)
-    bsln = mse(div, zeros)
-
     div = divergence_th(result, ps)
     lss = mse(div, zeros)
     merror = mse(model.gmass, ms)
 
     print('-----------------------------')
-    print('loss:', th.max(th.sqrt(lss).data))
-    print('merr:', th.max(th.sqrt(merror).data))
-    print('bsln:', th.max(th.sqrt(bsln).data))
+    print('lss:', th.max(th.sqrt(lss).data))
+    print('mer:', th.max(th.sqrt(merror).data))
     print('-----------------------------')
     sys.stdout.flush()
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr * (0.1 ** (counter // 100000))
 
     if counter % 360 == 0:
         if th.cuda.is_available():
