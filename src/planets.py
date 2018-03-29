@@ -379,7 +379,7 @@ def loss(xs, ys, result):
 
     div = divergence_th(rnd, ps.clone())
     sizes = tuple(div.size())
-    zeros = Variable(th.zeros(*sizes), requires_grad=False)
+    zeros = Variable(cast(np.zeros(sizes)), requires_grad=False)
     bsln = mse(div, zeros)
     div = divergence_th(result, ps)
     lss = mse(div, zeros)
