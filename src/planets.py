@@ -31,7 +31,7 @@ from flare.dataset.decorators import attributes, segment, divid, sequential, shu
 
 epsilon = 0.00001
 
-SCALE = 50.0
+SCALE = 120.0
 MSCALE = 500.0
 
 BATCH = 3
@@ -46,8 +46,6 @@ sun = None
 
 
 def shufflefn(xs, ys):
-    xs, ys = xs.copy(), ys.copy()
-
     perm = np.arange(xs.shape[-1])
     np.random.shuffle(perm)
     xs = xs[:, :, :, :, perm]
@@ -55,6 +53,16 @@ def shufflefn(xs, ys):
     perm = np.arange(ys.shape[-1])
     np.random.shuffle(perm)
     ys = ys[:, :, :, :, perm]
+
+    seg = np.arange(2, 5, 1)
+    np.random.shuffle(seg)
+
+    perm = np.concatenate((np.array([0, 1]), seg))
+    xs = xs[:, perm, :, :, :]
+
+    seg = seg - 1
+    perm = np.concatenate((np.array([0]), seg))
+    ys = ys[:, perm, :, :, :]
 
     return xs, ys
 
@@ -101,7 +109,7 @@ def generator(n, m, yrs):
     mass = xp.array(xp.random.rand(sz) / MSCALE, dtype=np.float)
     mass[0] = 1.0
 
-    x = SCALE / 2.0 * (2 * xp.random.rand(sz, 3) - 1)
+    x = SCALE / 4.0 * (2 * xp.random.rand(sz, 3) - 1)
     x[0, :] = xp.array([0.0, 0.0, 0.0], dtype=xp.float64)
 
     r = xp.sqrt(x[:, 0] * x[:, 0] + x[:, 1] * x[:, 1] + x[:, 2] * x[:, 2] + epsilon).reshape([INPUT + OUTPUT + 1, 1])
@@ -137,7 +145,7 @@ def generator(n, m, yrs):
             lasth = ht
 
 
-@shuffle(shufflefn, repeat=24)
+@shuffle(shufflefn, repeat=360)
 @data(swap=[0, 2, 3, 4, 1])
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
