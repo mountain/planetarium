@@ -340,3 +340,17 @@ def data(swap=None):
 
     return wrapper
 
+
+def shuffle(fn, repeat=1):
+    def wrapper(f):
+        def wrapped(*args, **kwargs):
+            results = [result for result in f(*args, **kwargs)]
+            for _ in range(repeat):
+                for result in results:
+                    for pair in result:
+                        xs, ys = pair
+                        yield [fn(xs, ys)]
+        return wrapped
+
+    return wrapper
+

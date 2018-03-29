@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
-from flare.dataset.decorators import attributes, segment, divid, sequential, data
+from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data
 
 
 epsilon = 0.00001
@@ -45,6 +45,20 @@ mass = None
 sun = None
 
 
+def shufflefn(xs, ys):
+    xs, ys = xs.copy(), ys.copy()
+
+    perm = np.arange(xs.shape[-1])
+    np.random.shuffle(perm)
+    xs = xs[:, :, :, :, perm]
+
+    perm = np.arange(ys.shape[-1])
+    np.random.shuffle(perm)
+    ys = ys[:, :, :, :, perm]
+
+    return xs, ys
+
+
 def divergence(xs, ys):
     xs = xs - sun
     ys = ys - sun
@@ -61,19 +75,20 @@ def divergence(xs, ys):
 
 def divergence_th(xs, ys):
     sz = xs.size()
-    b = sz[0] * sz[2] * sz[3]
+    b = sz[0]
+    v = sz[2] * sz[3]
     s = Variable(cast(sun), requires_grad = False)
-    xs = xs.permute(0, 2, 3, 1).contiguous().view(b, 3)
-    ys = ys.permute(0, 2, 3, 1).contiguous().view(b, 3)
+    xs = xs.permute(0, 2, 3, 1).contiguous().view(b * v, 3)
+    ys = ys.permute(0, 2, 3, 1).contiguous().view(b * v, 3)
     xs = xs - s
     ys = ys - s
-    rx = th.norm(xs, p=2, dim=1).view(b, 1)
-    ry = th.norm(ys, p=2, dim=1).view(b, 1)
+    rx = th.norm(xs, p=2, dim=1, keepdim=True)
+    ry = th.norm(ys, p=2, dim=1, keepdim=True)
     ux = xs / rx
     uy = ys / ry
-    da = th.bmm(ux.view(b, 1, 3), uy.view(b, 3, 1))
-    dr = (rx - ry) * (rx - ry)
-    return th.sum(da + dr, dim=1)
+    da = th.bmm(ux.view(b * v, 1, 3), uy.view(b * v, 3, 1)).view(b, v, 1)
+    dr = ((rx - ry) * (rx - ry)).view(b, v, 1)
+    return th.sum(da + dr, dim=2)
 
 
 def generator(n, m, yrs):
@@ -122,6 +137,7 @@ def generator(n, m, yrs):
             lasth = ht
 
 
+@shuffle(shufflefn, repeat=24)
 @data(swap=[0, 2, 3, 4, 1])
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
@@ -361,9 +377,9 @@ def loss(xs, ys, result):
     lss = mse(div, zeros)
     merror = mse(model.gmass, ms)
     print('-----------------------------')
-    print('loss:', th.max(lss.data))
-    print('merr:', th.max(merror.data))
-    print('bsln:', th.max(bsln.data))
+    print('loss:', th.max(th.sqrt(lss).data))
+    print('merr:', th.max(th.sqrt(merror).data))
+    print('bsln:', th.max(th.sqrt(bsln).data))
     print('-----------------------------')
     sys.stdout.flush()
 
