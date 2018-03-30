@@ -179,11 +179,11 @@ def dataset():
 
 
 class Guess(nn.Module):
-    def __init__(self, num_classes=120):
+    def __init__(self, num_classes=5 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.normal = nn.BatchNorm1d(16 * WINDOW)
-        self.layer1 = self._make_layer(16 * WINDOW, 256)
+        self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
+        self.layer1 = self._make_layer(4 * WINDOW * INPUT, 256)
         self.layer2 = self._make_layer(256, 512)
         self.layer3 = self._make_layer(512, 1024)
         self.linear = nn.Linear(1024, num_classes)
@@ -202,13 +202,13 @@ class Guess(nn.Module):
         out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 5, 12, 2)
+        out = out.view(out.size(0), 5, WINDOW, OUTPUT)
         out = F.tanh(out)
         return out
 
 
 class Encoder(nn.Module):
-    def __init__(self, num_classes=576):
+    def __init__(self, num_classes=48 * WINDOW):
         super(Encoder, self).__init__()
 
         self.normal = nn.BatchNorm1d(30 * WINDOW)
@@ -231,7 +231,7 @@ class Encoder(nn.Module):
         out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, 12, 6)
+        out = out.view(out.size(0), 8, WINDOW, 6)
         out = F.tanh(out)
         return out
 
@@ -266,7 +266,7 @@ class Decoder(nn.Module):
 
 
 class Evolve(nn.Module):
-    def __init__(self, num_classes=576):
+    def __init__(self, num_classes=8 * WINDOW * (INPUT + OUTPUT)):
         super(Evolve, self).__init__()
 
         self.normal = nn.BatchNorm1d(54 * WINDOW)
@@ -289,7 +289,7 @@ class Evolve(nn.Module):
         out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, 12, 6)
+        out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
         out = F.tanh(out)
         return out
 
