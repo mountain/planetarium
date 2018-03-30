@@ -99,7 +99,7 @@ def divergence_th(xs, ys):
     ry = th.norm(ys, p=2, dim=1, keepdim=True)
     ux = xs / rx
     uy = ys / ry
-    da = th.bmm(ux.view(b * v, 1, 3), uy.view(b * v, 3, 1)).view(b, v, 1)
+    da = 1 - th.bmm(ux.view(b * v, 1, 3), uy.view(b * v, 3, 1)).view(b, v, 1)
     dr = ((rx - ry) * (rx - ry)).view(b, v, 1)
     return th.sum(da + dr, dim=2)
 
