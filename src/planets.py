@@ -151,12 +151,12 @@ def generator(n, m, yrs, btch):
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
-            inputm = mass[:, 1:INPUT+1].reshape([btch, n, 1]) / MSCALE
+            inputm = mass[:, 1:INPUT+1].reshape([btch, n, 1]) * MSCALE
             inputp = rtp[:, 1:pv].reshape([btch, n, 3])
             inputdh = dh[:, 1:pv].reshape([btch, n, 1])
             input = np.concatenate([inputm, inputdh, inputp], axis=2).reshape([btch, n * 5])
 
-            outputm = mass[:, INPUT+1:].reshape([btch, m, 1]) / MSCALE
+            outputm = mass[:, INPUT+1:].reshape([btch, m, 1]) * MSCALE
             outputp = rtp[:, pv:sz].reshape([btch, m, 3])
             output = np.concatenate([outputm, outputp], axis=2).reshape([btch, m * 4])
             yield year, input, output
