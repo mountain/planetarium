@@ -354,3 +354,27 @@ def shuffle(fn, repeat=1):
 
     return wrapper
 
+
+def batch(repeat=1):
+    def wrapper(f):
+        def wrapped(*args, **kwargs):
+            batch_count = 0
+            results = [result for result in f(*args, **kwargs)]
+            for result in results:
+                if batch_count % repeat == 0:
+                    result_batch_xs, result_batch_ys = [], []
+                batch_count += 1
+                for pair in result:
+                    xs, ys = pair
+                    shape = xs.shape
+                    shape[0] = xs.shape[0] * repeat
+                    result_batch_xs.append(xs), result_batch_xs.append(ys)
+                    if batch_count % repeat == 0:
+                        array_xs = np.array(result_batch_xs, dtype=np.float32).reshape(shape)
+                        array_ys = np.array(result_batch_ys, dtype=np.float32).reshape(shape)
+                        yield [(array_xs, array_ys)]
+
+        return wrapped
+
+    return wrapper
+

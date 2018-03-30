@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
-from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data
+from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, batch
 
 
 epsilon = 0.00001
@@ -149,6 +149,7 @@ def generator(n, m, yrs):
             lasth = ht
 
 
+@batch(repeat=10)
 @shuffle(shufflefn, repeat=600)
 @data(swap=[0, 2, 3, 4, 1])
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
