@@ -182,8 +182,8 @@ class Guess(nn.Module):
     def __init__(self, num_classes=120):
         super(Guess, self).__init__()
 
-        self.normal = nn.BatchNorm1d(192)
-        self.layer1 = self._make_layer(192, 256)
+        self.normal = nn.BatchNorm1d(16 * WINDOW)
+        self.layer1 = self._make_layer(16 * WINDOW, 256)
         self.layer2 = self._make_layer(256, 512)
         self.layer3 = self._make_layer(512, 1024)
         self.linear = nn.Linear(1024, num_classes)
@@ -211,8 +211,8 @@ class Encoder(nn.Module):
     def __init__(self, num_classes=576):
         super(Encoder, self).__init__()
 
-        self.normal = nn.BatchNorm1d(360)
-        self.layer1 = self._make_layer(360, 512)
+        self.normal = nn.BatchNorm1d(30 * WINDOW)
+        self.layer1 = self._make_layer(30 * WINDOW, 512)
         self.layer2 = self._make_layer(512, 1024)
         self.layer3 = self._make_layer(1024, 2048)
         self.linear = nn.Linear(2048, num_classes)
@@ -240,8 +240,8 @@ class Decoder(nn.Module):
     def __init__(self, num_classes=6):
         super(Decoder, self).__init__()
 
-        self.normal = nn.BatchNorm1d(648)
-        self.layer1 = self._make_layer(648, 1024)
+        self.normal = nn.BatchNorm1d(54 * WINDOW)
+        self.layer1 = self._make_layer(54 * WINDOW, 1024)
         self.layer2 = self._make_layer(1024, 2048)
         self.layer3 = self._make_layer(2048, 2048)
         self.linear = nn.Linear(2048, num_classes)
@@ -269,8 +269,8 @@ class Evolve(nn.Module):
     def __init__(self, num_classes=576):
         super(Evolve, self).__init__()
 
-        self.normal = nn.BatchNorm1d(648)
-        self.layer1 = self._make_layer(648, 1024)
+        self.normal = nn.BatchNorm1d(54 * WINDOW)
+        self.layer1 = self._make_layer(54 * WINDOW, 1024)
         self.layer2 = self._make_layer(1024, 2048)
         self.layer3 = self._make_layer(2048, 2048)
         self.linear = nn.Linear(2048, num_classes)
@@ -298,8 +298,8 @@ class Gate(nn.Module):
     def __init__(self):
         super(Gate, self).__init__()
 
-        self.normal = nn.BatchNorm1d(648)
-        self.layer1 = self._make_layer(648, 1024)
+        self.normal = nn.BatchNorm1d(54 * WINDOW)
+        self.layer1 = self._make_layer(54 * WINDOW, 1024)
         self.layer2 = self._make_layer(1024, 2048)
         self.layer3 = self._make_layer(2048, 2048)
         self.linear = nn.Linear(2048, 6)
