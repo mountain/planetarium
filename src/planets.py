@@ -38,7 +38,7 @@ SCALE = 120.0
 MSCALE = 500.0
 
 BATCH = 3
-REPEAT = 10
+REPEAT = 100
 SIZE = 36
 WINDOW = 12
 INPUT = 4
@@ -151,7 +151,7 @@ def generator(n, m, yrs):
 
 
 @batch(repeat=REPEAT)
-@shuffle(shufflefn, repeat=REPEAT * 10)
+@shuffle(shufflefn, repeat=REPEAT)
 @data(swap=[0, 2, 3, 4, 1])
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
