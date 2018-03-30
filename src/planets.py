@@ -373,8 +373,14 @@ def predict(xs):
 counter = 0
 
 
+import time
+
+
+lasttime = time.time()
+
+
 def loss(xs, ys, result):
-    global counter
+    global counter, lasttime
     counter = counter + 1
 
     ms = ys[:, 0:1, 0, :, :]
@@ -391,11 +397,13 @@ def loss(xs, ys, result):
     merror = mse(model.gmass, ms)
 
     print('-----------------------------')
+    print('dur:', time.time() - lasttime)
     print('lss:', th.mean(th.sqrt(lss).data))
     print('mer:', th.mean(th.sqrt(merror).data))
     print('ttl:', th.mean(th.sqrt(lss + merror / 50).data))
     print('-----------------------------')
     sys.stdout.flush()
+    lasttime = time.time()
 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr * (0.1 ** (counter // 100000))
