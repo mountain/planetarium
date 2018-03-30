@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
-from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, batch
+from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, rebatch
 
 
 epsilon = 0.00001
@@ -39,8 +39,8 @@ epsilon = 0.00001
 SCALE = 120.0
 MSCALE = 500.0
 
-BATCH = 5
-REPEAT = 10
+BATCH = 13
+REPEAT = 11
 SIZE = 36
 WINDOW = 12
 INPUT = 4
@@ -56,14 +56,17 @@ lasttime = time.time()
 
 
 def shufflefn(xs, ys):
+    # permute on different input
     perm = np.arange(xs.shape[-1])
     np.random.shuffle(perm)
     xs = xs[:, :, :, :, perm]
 
+    # permute on different out
     perm = np.arange(ys.shape[-1])
     np.random.shuffle(perm)
     ys = ys[:, :, :, :, perm]
 
+    # permute on different space dims
     seg = np.arange(2, 5, 1)
     np.random.shuffle(seg)
 
@@ -96,12 +99,14 @@ def divergence_th(xs, ys):
     b = sz[0]
     v = sz[2] * sz[3]
     s = Variable(cast(sun), requires_grad = False)
-    xs = xs.permute(0, 2, 3, 1).contiguous().view(b * v, 3)
-    ys = ys.permute(0, 2, 3, 1).contiguous().view(b * v, 3)
+    s = th.cat([s for _ in range(b // s.size()[0])], dim=0)
+
+    xs = xs.permute(0, 2, 3, 1).contiguous().view(b, v, 3)
+    ys = ys.permute(0, 2, 3, 1).contiguous().view(b, v, 3)
     xs = xs - s
     ys = ys - s
-    rx = th.norm(xs, p=2, dim=1, keepdim=True)
-    ry = th.norm(ys, p=2, dim=1, keepdim=True)
+    rx = th.norm(xs, p=2, dim=-1, keepdim=True)
+    ry = th.norm(ys, p=2, dim=-1, keepdim=True)
     ux = xs / rx
     uy = ys / ry
     da = 1 - th.bmm(ux.view(b * v, 1, 3), uy.view(b * v, 3, 1)).view(b, v, 1)
@@ -109,7 +114,7 @@ def divergence_th(xs, ys):
     return th.sum(da + dr, dim=2)
 
 
-def generator(n, m, yrs):
+def generator(n, m, yrs, btch):
     global lasttime
     lasttime = time.time()
 
@@ -118,16 +123,16 @@ def generator(n, m, yrs):
     n = int(n)
     m = int(m)
     pv = int(n + 1)
-    sz = int(n + m + 1)
-    mass = xp.array(xp.random.rand(sz) / MSCALE, dtype=np.float)
-    mass[0] = 1.0
+    sz = n + m + 1
+    mass = xp.array(xp.random.rand(btch, sz) / MSCALE, dtype=np.float)
+    mass[:, 0] = np.ones([btch])
 
-    x = SCALE / 4.0 * (2 * xp.random.rand(sz, 3) - 1)
-    x[0, :] = xp.array([0.0, 0.0, 0.0], dtype=xp.float64)
+    x = SCALE / 4.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
+    x[:, 0, :] = xp.zeros([btch, 3], dtype=xp.float64)
 
-    r = xp.sqrt(x[:, 0] * x[:, 0] + x[:, 1] * x[:, 1] + x[:, 2] * x[:, 2] + epsilon).reshape([INPUT + OUTPUT + 1, 1])
-    v = xp.sqrt(au.G / r) * (2 * xp.random.rand(sz, 3) - 1)
-    v[0] = - np.sum((mass[1:, np.newaxis] * v[1:]) / mass[0], axis=0)
+    r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, INPUT + OUTPUT + 1, 1])
+    v = xp.sqrt(au.G / r) * (2 * xp.random.rand(btch, sz, 3) - 1)
+    v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
     h = hamilton.hamiltonian(au, mass)
@@ -144,16 +149,16 @@ def generator(n, m, yrs):
             ht = h(x, v)
             dh = ht - lasth
 
-            sun = rtp[0:1].reshape([1, 3])
+            sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
-            inputm = mass[1:INPUT+1].reshape([n, 1]) * MSCALE
-            inputp = rtp[1:pv].reshape([n, 3])
-            inputdh = dh[1:pv].reshape([n, 1])
-            input = np.concatenate([inputm, inputdh, inputp], axis=1).reshape([n * 5])
+            inputm = mass[:, 1:INPUT+1].reshape([btch, n, 1]) / MSCALE
+            inputp = rtp[:, 1:pv].reshape([btch, n, 3])
+            inputdh = dh[:, 1:pv].reshape([btch, n, 1])
+            input = np.concatenate([inputm, inputdh, inputp], axis=2).reshape([btch, n * 5])
 
-            outputm = mass[INPUT+1:].reshape([m, 1]) * MSCALE
-            outputp = rtp[pv:sz].reshape([m, 3])
-            output = np.concatenate([outputm, outputp], axis=1).reshape([m * 4])
+            outputm = mass[:, INPUT+1:].reshape([btch, m, 1]) / MSCALE
+            outputp = rtp[:, pv:sz].reshape([btch, m, 3])
+            output = np.concatenate([outputm, outputp], axis=2).reshape([btch, m * 4])
             yield year, input, output
             lasth = ht
 
@@ -162,15 +167,15 @@ def generator(n, m, yrs):
     lasttime = time.time()
 
 
-@batch(repeat=REPEAT)
+@rebatch(repeat=REPEAT)
 @shuffle(shufflefn, repeat=REPEAT)
 @data(swap=[0, 2, 3, 4, 1])
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
+@sequential(['ds.x'], ['ds.y'], layout_in=[BATCH, SIZE, INPUT, 5], layout_out=[BATCH, SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
-def dataset(n):
-    return generator(INPUT, OUTPUT, SIZE * n)
+def dataset():
+    return generator(INPUT, OUTPUT, SIZE, BATCH)
 
 
 class Guess(nn.Module):
@@ -334,13 +339,16 @@ class Model(nn.Module):
         self.batch = new_val
 
     def forward(self, x):
-        x = th.squeeze(x, dim=2)
+        x = th.squeeze(x, dim=2).permute(0, 2, 1, 3, 4).contiguous()
+        sr, sb, sc, ss, si = tuple(x.size())
+        x = x.view(sr * sb, sc, ss, si)
+
         m = x[:, 0:1, :, :]
         dh = x[:, 1:2, :, :]
         p = x[:, 2:5, :, :]
 
-        result = Variable(cast(np.zeros([self.batch * REPEAT, 3, SIZE, OUTPUT])))
-        self.merror = Variable(cast(np.zeros([self.batch * REPEAT, 1, 1, 1])))
+        result = Variable(cast(np.zeros([sr * sb, 3, SIZE, OUTPUT])))
+        self.merror = Variable(cast(np.zeros([sr * sb, 1, 1, 1])))
 
         init_m = m[:, :, 0:WINDOW, :]
         init_p = p[:, :, 0:WINDOW, :]
@@ -348,7 +356,7 @@ class Model(nn.Module):
         init = th.cat((init_p, init_dh), dim=1)
 
         guess = self.guess(init)
-        guess = guess.view(self.batch * REPEAT, 5, WINDOW, OUTPUT)
+        guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
         gmass = guess[:, 0:1, :, :]
         gposn = guess[:, 1:4, :, :]
         gdelh = guess[:, 4:5, :, :]
@@ -367,6 +375,9 @@ class Model(nn.Module):
             result[:, :, i::SIZE, :] = target
             #print('currt:', th.max(target.data), th.min(target.data), th.mean(target.data))
             #sys.stdout.flush()
+
+        gmass = th.cat([gmass for _ in range(int(SIZE / WINDOW))], dim=2)
+        result = th.cat([gmass, result], dim=1)
 
         return result
 
@@ -390,24 +401,29 @@ def predict(xs):
 counter = 0
 
 
-
-
 def loss(xs, ys, result):
     global counter, lasttime
     counter = counter + 1
 
-    ms = ys[:, 0:1, 0, :, :]
-    ps = ys[:, 1:4, 0, :, :]
+    xs = xs.permute(0, 2, 1, 3, 4).contiguous()
+    sr, sb, sc, ss, si = tuple(xs.size())
+    xs = xs.view(sr * sb, sc, ss, si)
 
-    sizes = tuple(ps.size())
-    rnd = Variable(cast(SCALE / 2.0 * (2 * xp.random.rand(*sizes) - 1)))
+    ys = ys.permute(0, 2, 1, 3, 4).contiguous()
+    sr, sb, sc, ss, si = tuple(ys.size())
+    ys = ys.view(sr * sb, sc, ss, si)
 
-    div = divergence_th(rnd, ps.clone())
+    ms = ys[:, 0:1, :, :]
+    ps = ys[:, 1:4, :, :]
+
+    gm = result[:, 0:1, :, :]
+    gp = result[:, 1:4, :, :]
+
+    div = divergence_th(gp, ps)
     sizes = tuple(div.size())
     zeros = Variable(cast(np.zeros(sizes)), requires_grad=False)
-    div = divergence_th(result, ps)
     lss = mse(div, zeros)
-    merror = mse(model.gmass, ms)
+    merror = mse(gm, ms)
 
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
@@ -419,20 +435,20 @@ def loss(xs, ys, result):
     lasttime = time.time()
 
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr * (0.1 ** (counter // 100000))
+        param_group['lr'] = lr * (0.1 ** (counter // 100))
 
     if counter % 1 == 0:
         if th.cuda.is_available():
-            input = xs.data.cpu().numpy().reshape([model.batch * REPEAT, 5, SIZE, INPUT])[0, 2:5, :, :]
-            truth = ps.data.cpu().numpy().reshape([model.batch * REPEAT, 3, SIZE, OUTPUT])[0, :, :, :]
-            guess = result.data.cpu().numpy().reshape([model.batch * REPEAT, 3, SIZE, OUTPUT])[0, :, :, :]
+            input = xs.data.cpu().numpy()[0, 2:5, :, :]
+            truth = ps.data.cpu().numpy()[0, :, :, :]
+            guess = result.data.cpu().numpy()[0, :, :, :]
             mass = ms[0, 0, 0, :].data.cpu().numpy()
             gmass = model.gmass[0, 0, 0, :].data.cpu().numpy()
             tmass = model.tmass[0, 0, 0, :].data.cpu().numpy()
         else:
-            input = xs.data.numpy().reshape([model.batch * REPEAT, 5, SIZE, INPUT])[0, 2:5, :, :]
-            truth = ps.data.numpy().reshape([model.batch * REPEAT, 3, SIZE, OUTPUT])[0, :, :, :]
-            guess = result.data.numpy().reshape([model.batch * REPEAT, 3, SIZE, OUTPUT])[0, :, :, :]
+            input = xs.data.numpy()[0, 2:5, :, :]
+            truth = ps.data.numpy()[0, :, :, :]
+            guess = result.data.numpy()[0, :, :, :]
             mass = ms[0, 0, 0, :].data.numpy()
             gmass = model.gmass[0, 0, 0, :].data.numpy()
             tmass = model.tmass[0, 0, 0, :].data.numpy()
@@ -458,17 +474,17 @@ def loss(xs, ys, result):
     return th.mean(lss + merror / 50)
 
 
-learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH)
+learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH * REPEAT)
 
 if __name__ == '__main__':
     for epoch in range(10000):
         print('.')
-        learner.learn(dataset(1), dataset(1))
+        learner.learn(dataset(), dataset())
 
     print('--------------------------------')
     errsum = 0.0
     for epoch in range(1000):
-        err = learner.test(dataset(1))
+        err = learner.test(dataset())
         print(err)
         errsum += err
 

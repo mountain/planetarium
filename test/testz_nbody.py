@@ -28,8 +28,8 @@ class TestNbody(unittest.TestCase):
 
     def test_nbody_verlet(self):
         t = 0
-        x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=xp.float64)
-        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]], dtype=xp.float64)
+        x = xp.array([[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]], dtype=xp.float64)
+        v = xp.array([[[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]]], dtype=xp.float64)
         h0 = self.h(x, v)
 
         for epoch in range(366):
@@ -46,8 +46,8 @@ class TestNbody(unittest.TestCase):
 
     def test_nbody_nk4(self):
         t = 0
-        x = xp.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=xp.float64)
-        v = xp.array([[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]], dtype=xp.float64)
+        x = xp.array([[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]], dtype=xp.float64)
+        v = xp.array([[[0.0, 0.0, 0.0], [0.0, xp.sqrt(au.G * self.m[0]), 0.0]]], dtype=xp.float64)
         phase = xp.array([[x[0], v[0]], [x[1], v[1]]], dtype=xp.float64)
         assert(phase[0, 0, 0] == 0.0)
         assert(phase[0, 0, 1] == 0.0)

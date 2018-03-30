@@ -11,26 +11,28 @@ if environ.get('CUDA_HOME') is not None:
 
 
 def acceleration_of(unit, m):
-    n = len(m)
-    r = xp.zeros([n, n], dtype=xp.float64)
-    a = xp.zeros([n, n, 3], dtype=xp.float64)
+    shape = m.shape
+    b = shape[0]
+    n = shape[1]
+    r = xp.zeros([b, n, n], dtype=xp.float64)
+    a = xp.zeros([b, n, n, 3], dtype=xp.float64)
 
     def acceleration(t, x, v):
         for i in range(n):
             for j in range(i):
-                dist = xp.linalg.norm(x[i] - x[j])
-                r[i, j] = dist
-                r[j, i] = dist
+                dist = xp.linalg.norm(x[:, i] - x[:, j], axis=-1)
+                r[:, i, j] = dist
+                r[:, j, i] = dist
 
         for i in range(n):
             for j in range(n):
                 if i != j:
-                    val = unit.G * m[j] / r[i, j] / r[i, j]
-                    a[i, j, :] = val * (x[j] - x[i]) / r[i, j]
+                    val = unit.G * m[:, j] / r[:, i, j] / r[:, i, j]
+                    a[:, i, j, :] = val[:, np.newaxis] * (x[:, j] - x[:, i]) / r[:, i, j, np.newaxis]
                 else:
-                    a[i, j, :] = xp.zeros([3])
+                    a[:, i, j, :] = xp.zeros([b, 3])
 
-        return xp.sum(a, axis=1)
+        return xp.sum(a, axis=2)
 
     return acceleration
 

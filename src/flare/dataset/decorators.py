@@ -102,7 +102,15 @@ class ObservableDict(HierarchicalDict):
             keystr = '.'.join(subkey)
             if keystr in self.list_input:
                 pos = self.list_input.index(keystr)
-                if len(self.layout_input) == 5:
+                if len(self.layout_input) == 6:
+                    val = np.array(self[subkey])
+                    if np.isscalar(val):
+                        value = val * np.ones(self.layout)
+                    else:
+                        value = val.reshape(self.layout_in)
+
+                    self.data_input[0, pos, :, :, :, :] = np.array(value).reshape(self.layout_in)
+                elif len(self.layout_input) == 5:
                     val = np.array(self[subkey])
                     if np.isscalar(val):
                         value = val * np.ones(self.layout)
@@ -120,7 +128,7 @@ class ObservableDict(HierarchicalDict):
 
             if keystr in self.list_output:
                 pos = self.list_output.index(keystr)
-                if len(self.layout_output) == 5:
+                if len(self.layout_output) == 6:
                     val = np.array(self[subkey])
 
                     if np.isscalar(val):
@@ -128,8 +136,14 @@ class ObservableDict(HierarchicalDict):
                     else:
                         value = val.reshape(self.layout_out)
 
-                        if len(val.shape) == len(self.layout_out) and val.shape != self.layout_out:
-                            value = val * np.ones(self.layout_out)
+                    self.data_output[0, pos, :, :, :, :] = np.array(value).reshape(self.layout_out)
+                elif len(self.layout_output) == 5:
+                    val = np.array(self[subkey])
+
+                    if np.isscalar(val):
+                        value = val * np.ones(self.layout)
+                    else:
+                        value = val.reshape(self.layout_out)
 
                     self.data_output[0, pos, :, :, :] = np.array(value).reshape(self.layout_out)
                 elif len(self.layout_output) == 4:
@@ -331,11 +345,17 @@ def data(swap=None):
     def wrapper(f):
         def wrapped(*args, **kwargs):
             for result in f(*args, **kwargs):
+                input, output = result.data_input, result.data_output
+                while len(input.shape) > 2 and input.shape[1] == 1:
+                    input = np.squeeze(input, 1)
+                while len(output.shape) > 2 and  output.shape[1] == 1:
+                    output = np.squeeze(output, 1)
+
                 if swap is None:
-                    yield [(result.data_input, result.data_output)]
+                    yield [(input, output)]
                 else:
                     idx = range(len(swap))
-                    yield [(np.moveaxis(result.data_input, idx, swap), np.moveaxis(result.data_output, idx, swap))]
+                    yield [(np.moveaxis(input, idx, swap), np.moveaxis(output, idx, swap))]
         return wrapped
 
     return wrapper
@@ -357,7 +377,7 @@ def shuffle(fn, repeat=1):
     return wrapper
 
 
-def batch(repeat=1):
+def rebatch(repeat=1):
     def wrapper(f):
         def wrapped(*args, **kwargs):
             batch_count = 0
