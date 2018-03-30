@@ -400,7 +400,7 @@ def loss(xs, ys, result):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr * (0.1 ** (counter // 100000))
 
-    if counter % 360 == 0:
+    if counter % 1 == 0:
         if th.cuda.is_available():
             input = xs.data.cpu().numpy().reshape([model.batch, 5, SIZE, INPUT])[0, 2:5, :, :]
             truth = ps.data.cpu().numpy().reshape([model.batch, 3, SIZE, OUTPUT])[0, :, :, :]
