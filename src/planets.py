@@ -3,7 +3,9 @@
 import matplotlib
 matplotlib.use('Agg')
 
+
 import sys
+import time
 import numpy as np
 
 import nbody
@@ -48,6 +50,9 @@ lr = 1e-5
 
 mass = None
 sun = None
+
+
+lasttime = time.time()
 
 
 def shufflefn(xs, ys):
@@ -105,6 +110,9 @@ def divergence_th(xs, ys):
 
 
 def generator(n, m, yrs):
+    global lasttime
+    lasttime = time.time()
+
     global mass, sun
 
     n = int(n)
@@ -148,6 +156,10 @@ def generator(n, m, yrs):
             output = np.concatenate([outputm, outputp], axis=1).reshape([m * 4])
             yield year, input, output
             lasth = ht
+
+    print('gen:', time.time() - lasttime)
+    sys.stdout.flush()
+    lasttime = time.time()
 
 
 @batch(repeat=REPEAT)
@@ -366,6 +378,11 @@ optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-8)
 
 
 def predict(xs):
+    global lasttime
+    print('cns:', time.time() - lasttime)
+    sys.stdout.flush()
+    lasttime = time.time()
+
     result = model(xs)
     return result
 
@@ -373,10 +390,6 @@ def predict(xs):
 counter = 0
 
 
-import time
-
-
-lasttime = time.time()
 
 
 def loss(xs, ys, result):
