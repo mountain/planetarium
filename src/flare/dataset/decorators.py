@@ -365,7 +365,8 @@ def batch(repeat=1):
             for result in results:
                 if batch_count % repeat == 0:
                     result_batch_xs, result_batch_ys = [], []
-                for pair in result[0]:
+                for pair in result:
+                    batch_count += 1
                     xs, ys = pair
                     shape = list(xs.shape)
                     shape[0] = shape[0] * repeat
