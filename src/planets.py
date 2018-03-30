@@ -38,6 +38,7 @@ SCALE = 120.0
 MSCALE = 500.0
 
 BATCH = 3
+REPEAT = 10
 SIZE = 36
 WINDOW = 12
 INPUT = 4
@@ -149,8 +150,8 @@ def generator(n, m, yrs):
             lasth = ht
 
 
-@batch(repeat=10)
-@shuffle(shufflefn, repeat=600)
+@batch(repeat=REPEAT)
+@shuffle(shufflefn, repeat=REPEAT * 10)
 @data(swap=[0, 2, 3, 4, 1])
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, INPUT, 5], layout_out=[SIZE, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
@@ -326,8 +327,8 @@ class Model(nn.Module):
         dh = x[:, 1:2, :, :]
         p = x[:, 2:5, :, :]
 
-        result = Variable(cast(np.zeros([self.batch, 3, SIZE, OUTPUT])))
-        self.merror = Variable(cast(np.zeros([self.batch, 1, 1, 1])))
+        result = Variable(cast(np.zeros([self.batch * REPEAT, 3, SIZE, OUTPUT])))
+        self.merror = Variable(cast(np.zeros([self.batch * REPEAT, 1, 1, 1])))
 
         init_m = m[:, :, 0:WINDOW, :]
         init_p = p[:, :, 0:WINDOW, :]
@@ -335,7 +336,7 @@ class Model(nn.Module):
         init = th.cat((init_p, init_dh), dim=1)
 
         guess = self.guess(init)
-        guess = guess.view(self.batch, 5, WINDOW, OUTPUT)
+        guess = guess.view(self.batch * REPEAT, 5, WINDOW, OUTPUT)
         gmass = guess[:, 0:1, :, :]
         gposn = guess[:, 1:4, :, :]
         gdelh = guess[:, 4:5, :, :]
