@@ -369,14 +369,17 @@ def batch(repeat=1):
                     batch_count += 1
 
                     xs, ys = pair
-                    shape = list(xs.shape)
-                    shape[0] = shape[0] * repeat
+                    shapex = list(xs.shape)
+                    shapex[0] = shapex[0] * repeat
+                    shapey = list(ys.shape)
+                    shapey[0] = shapey[0] * repeat
+
                     result_batch_xs.append(xs)
                     result_batch_ys.append(ys)
 
                     if batch_count % repeat == 0:
-                        array_xs = np.array(result_batch_xs, dtype=np.float32).reshape(shape)
-                        array_ys = np.array(result_batch_ys, dtype=np.float32).reshape(shape)
+                        array_xs = np.array(result_batch_xs, dtype=np.float32).reshape(shapex)
+                        array_ys = np.array(result_batch_ys, dtype=np.float32).reshape(shapey)
                         yield [(array_xs, array_ys)]
 
         return wrapped
