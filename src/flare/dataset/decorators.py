@@ -349,6 +349,8 @@ def shuffle(fn, repeat=1):
                 for result in results:
                     for pair in result:
                         xs, ys = pair
+                        xs = np.array(xs, dtype=np.float32)
+                        ys = np.array(ys, dtype=np.float32)
                         yield [fn(xs, ys)]
         return wrapped
 
@@ -363,11 +365,10 @@ def batch(repeat=1):
             for result in results:
                 if batch_count % repeat == 0:
                     result_batch_xs, result_batch_ys = [], []
-                batch_count += 1
-                for pair in result:
+                for pair in result[0]:
                     xs, ys = pair
                     shape = list(xs.shape)
-                    shape[0] = xs.shape[0] * repeat
+                    shape[0] = shape[0] * repeat
                     result_batch_xs.append(xs), result_batch_xs.append(ys)
                     if batch_count % repeat == 0:
                         array_xs = np.array(result_batch_xs, dtype=np.float32).reshape(shape)
