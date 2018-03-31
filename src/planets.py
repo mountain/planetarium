@@ -369,10 +369,11 @@ class Model(nn.Module):
             envr = th.cat((self.gmass, self.state), dim=1)
             self.state = self.evolve(envr)
             gate = self.gate(envr)
-            target = 4 * gate * self.decode(envr)
+            target = gate * self.decode(envr)
             result[:, :, i::SIZE, :] = target
-            #print('currt:', th.max(target.data), th.min(target.data), th.mean(target.data))
-            #sys.stdout.flush()
+            print('scope:', max(th.max(target.data, dim=0) - th.min(target.data, dim=0), th.max(target.data, dim=1) - th.min(target.data, dim=1), th.max(target.data, dim=2) - th.min(target.data, dim=2)))
+            print('ratio:', th.max(gate.data), th.min(gate.data))
+            sys.stdout.flush()
 
         gmass = th.cat([gmass for _ in range(int(SIZE / WINDOW))], dim=2)
         result = th.cat([gmass, result], dim=1)

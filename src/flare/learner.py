@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import types
+import sys
 import numpy as np
 import itertools
 
@@ -121,6 +122,7 @@ class BaseLearner():
             print('###################################################')
             print('loss:', avgloss.data[0])
             print('###################################################')
+            sys.stdout.flush()
             self.after_test(vxs.data, vys.data, vrslt.data, lss.data)
 
             self.status = statusold
