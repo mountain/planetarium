@@ -371,8 +371,8 @@ class Model(nn.Module):
             gate = self.gate(envr)
             target = gate * self.decode(envr)
             result[:, :, i::SIZE, :] = target
-            print('scope:', th.max(target.data) - th.min(target.data))
             print('ratio:', th.max(gate.data), th.min(gate.data))
+            print('gscope:', th.max(target.data) - th.min(target.data))
             sys.stdout.flush()
 
         gmass = th.cat([gmass for _ in range(int(SIZE / WINDOW))], dim=2)
@@ -424,6 +424,8 @@ def loss(xs, ys, result):
     lss = mse(div, zeros)
     merror = mse(gm, ms)
 
+    print('-----------------------------')
+    print('tscope:', th.max(ps.data) - th.min(ps.data))
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
     print('lss:', th.mean(th.sqrt(lss).data))
