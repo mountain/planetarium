@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
+from flare.nn.lstm import ConvLSTM
 from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, rebatch
 
 
@@ -297,23 +298,20 @@ class Gate(nn.Module):
         super(Gate, self).__init__()
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.layer1 = self._make_layer(9 * WINDOW * (INPUT + OUTPUT), 1024)
-        self.layer2 = self._make_layer(1024, 2048)
-        self.layer3 = self._make_layer(2048, 2048)
+        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, 3 * OUTPUT)
 
-    def _make_layer(self, num_in, num_out):
-        return nn.Sequential(
-            nn.Linear(num_in, num_out),
-            nn.ReLU(),
-        )
+    def batch_size_changed(self, new_val, orig_val):
+        new_val = new_val * REPEAT
+        self.batch = new_val
+        self.lstm.batch_size_changed(orig_val, orig_val, force=True)
+        self.lstm.reset()
 
     def forward(self, x):
         out = x.view(x.size(0), -1)
         out = self.normal(out)
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
+        out = out.view(out.size(0), -1, 1, 1)
+        out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, OUTPUT)
@@ -335,6 +333,7 @@ class Model(nn.Module):
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
+        self.gate.batch_size_changed(new_val, orig_val)
 
     def forward(self, x):
         x = x.permute(0, 2, 4, 1, 3).contiguous()

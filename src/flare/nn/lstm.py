@@ -41,10 +41,10 @@ class ConvLSTM(th.nn.Module):
             self.state = self.state.cuda()
             self.history = self.history.cuda()
 
-    def batch_size_changed(self, new_val, orig_val):
+    def batch_size_changed(self, new_val, orig_val, force=False):
         sizes = list(self.state.data.size())
         sizes[0] = new_val
-        if new_val != self.batch:
+        if force or new_val != self.batch:
             self.old_state = self.state
             self.old_history = self.history
             self.state = Variable(th.zeros(sizes))
