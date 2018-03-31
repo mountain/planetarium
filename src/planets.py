@@ -321,7 +321,7 @@ class Gate(nn.Module):
 
 class Ratio(nn.Module):
     def __init__(self):
-        super(Gate, self).__init__()
+        super(Ratio, self).__init__()
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
         self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
