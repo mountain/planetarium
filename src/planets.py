@@ -371,7 +371,7 @@ class Model(nn.Module):
             gate = self.gate(envr)
             target = gate * self.decode(envr)
             result[:, :, i::SIZE, :] = target
-            print('scope:', max(th.max(target.data, dim=0) - th.min(target.data, dim=0), th.max(target.data, dim=1) - th.min(target.data, dim=1), th.max(target.data, dim=2) - th.min(target.data, dim=2)))
+            print('scope:', th.max(target.data) - th.min(target.data))
             print('ratio:', th.max(gate.data), th.min(gate.data))
             sys.stdout.flush()
 
