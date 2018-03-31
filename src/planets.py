@@ -369,7 +369,7 @@ class Model(nn.Module):
             envr = th.cat((self.gmass, self.state), dim=1)
             self.state = self.evolve(envr)
             gate = self.gate(envr)
-            target = gate * self.decode(envr)
+            target = 4 * gate * self.decode(envr)
             result[:, :, i::SIZE, :] = target
             #print('currt:', th.max(target.data), th.min(target.data), th.mean(target.data))
             #sys.stdout.flush()
