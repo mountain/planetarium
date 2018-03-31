@@ -369,9 +369,20 @@ class Model(nn.Module):
             self.state = self.evolve(envr)
             gate = self.gate(envr)
             target = gate * self.decode(envr)
-            scopefix = 40
+            scopefix = 35
             target = scopefix * target
-            result[:, :, i::SIZE, :] = target
+
+            if i >= SIZE - WINDOW:
+                result[:, :, i::SIZE, :] = target
+            else:
+                init_p = p[:, :, i:WINDOW+i, :]
+                init_dh = dh[:, :, i:WINDOW+i, :]
+                init = th.cat((init_p, init_dh), dim=1)
+                guess = self.guess(init)
+                guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
+                gposn = guess[:, 1:4, 0::WINDOW, :]
+                result[:, :, i::SIZE, :] = (target + gposn) / 2.0
+
             print('ratio:', th.max(gate.data), th.min(gate.data))
             print('gscope:', th.max(target.data) - th.min(target.data))
             sys.stdout.flush()
