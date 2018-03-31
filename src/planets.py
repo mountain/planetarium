@@ -315,7 +315,7 @@ class Gate(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, OUTPUT)
-        out = F.sigmoid(out)
+        out = th.exp(F.tanh(out))
         return out
 
 
