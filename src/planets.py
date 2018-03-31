@@ -369,7 +369,7 @@ class Model(nn.Module):
             self.state = self.evolve(envr)
             gate = self.gate(envr)
             target = gate * self.decode(envr)
-            scopefix = 33
+            scopefix = 40
             target = scopefix * target
             result[:, :, i::SIZE, :] = target
             print('ratio:', th.max(gate.data), th.min(gate.data))
