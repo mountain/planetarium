@@ -319,6 +319,32 @@ class Gate(nn.Module):
         return out
 
 
+class Ratio(nn.Module):
+    def __init__(self):
+        super(Gate, self).__init__()
+
+        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
+        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.linear = nn.Linear(2048, 3 * OUTPUT)
+
+    def batch_size_changed(self, new_val, orig_val):
+        new_val = new_val * REPEAT
+        self.batch = new_val
+        self.lstm.batch_size_changed(orig_val, orig_val, force=True)
+        self.lstm.reset()
+
+    def forward(self, x):
+        out = x.view(x.size(0), -1)
+        out = self.normal(out)
+        out = out.view(out.size(0), -1, 1, 1)
+        out = self.lstm(out)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        out = out.view(out.size(0), 3, 1, OUTPUT)
+        out = F.sigmoid(out)
+        return out
+
+
 class Model(nn.Module):
     def __init__(self, bsize=1, omass=None):
         super(Model, self).__init__()
@@ -330,6 +356,7 @@ class Model(nn.Module):
         self.decode = Decoder()
         self.evolve = Evolve()
         self.gate = Gate()
+        self.ratio = Ratio()
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
@@ -367,6 +394,7 @@ class Model(nn.Module):
         for i in range(SIZE):
             envr = th.cat((self.gmass, self.state), dim=1)
             self.state = self.evolve(envr)
+            ratio = self.ratio(envr)
             gate = self.gate(envr)
             target = gate * self.decode(envr)
 
@@ -379,9 +407,10 @@ class Model(nn.Module):
                 guess = self.guess(init)
                 guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
                 gposn = guess[:, 1:4, 0::WINDOW, :]
-                result[:, :, i::SIZE, :] = (target + gposn) / 2.0
+                result[:, :, i::SIZE, :] = ratio * target + (1 - ratio) * gposn
 
-            print('ratio:', th.max(gate.data), th.min(gate.data))
+            print('gate:', th.max(gate.data), th.min(gate.data))
+            print('ratio:', th.max(ratio.data), th.min(ratio.data))
             print('gscope:', th.max(target.data) - th.min(target.data))
             sys.stdout.flush()
 
