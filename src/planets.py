@@ -374,7 +374,7 @@ class Model(nn.Module):
             target = scopefix * target
             result[:, :, i::SIZE, :] = target
             print('ratio:', th.max(gate.data), th.min(gate.data))
-            print('gscope:', th.max(target) - th.min(target))
+            print('gscope:', th.max(target.data) - th.min(target.data))
             sys.stdout.flush()
 
         gmass = th.cat([gmass for _ in range(int(SIZE / WINDOW))], dim=2)
