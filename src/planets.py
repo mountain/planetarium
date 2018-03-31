@@ -396,7 +396,7 @@ class Model(nn.Module):
             self.state = self.evolve(envr)
             ratio = self.ratio(envr)
             gate = self.gate(envr)
-            target = 20 * gate * self.decode(envr)
+            target = 25 * gate * self.decode(envr)
 
             if i >= SIZE - WINDOW:
                 result[:, :, i::SIZE, :] = target
