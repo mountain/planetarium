@@ -13,8 +13,8 @@ def hamiltonian(unit, m):
     def h(x, v):
         s = np.sum(v * v, axis=-1)
         k = m * s / 2.0
-        u = np.zeros([b, n, n])
 
+        u = np.zeros([b, n, n])
         for i in range(n):
             for j in range(i):
                 if i != j:

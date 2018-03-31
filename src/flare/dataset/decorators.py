@@ -105,18 +105,17 @@ class ObservableDict(HierarchicalDict):
                 if len(self.layout_input) == 6:
                     val = np.array(self[subkey])
                     if np.isscalar(val):
-                        value = val * np.ones(self.layout)
+                        value = val * np.ones(self.layout_in)
                     else:
                         value = val.reshape(self.layout_in)
-
-                    self.data_input[0, pos, :, :, :, :] = np.array(value).reshape(self.layout_in)
+                    self.data_input[0, pos, :, :, :, :] = value
                 elif len(self.layout_input) == 5:
                     val = np.array(self[subkey])
                     if np.isscalar(val):
-                        value = val * np.ones(self.layout)
+                        value = val * np.ones(self.layout_in)
                     else:
                         value = val.reshape(self.layout_in)
-                    self.data_input[0, pos, :, :, :] = np.array(value).reshape(self.layout_in)
+                    self.data_input[0, pos, :, :, :] = value
                 elif len(self.layout_input) == 4:
                     self.data_input[0, pos, :, :] = np.array(self[subkey]).reshape(self.layout_in)
                 elif len(self.layout_input) == 3:

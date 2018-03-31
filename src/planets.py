@@ -34,15 +34,15 @@ from flare.learner import StandardLearner, cast
 from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, rebatch
 
 
-epsilon = 0.00001
+epsilon = 0.00000001
 
 SCALE = 120.0
 MSCALE = 500.0
 
 BATCH = 3
 REPEAT = 600
-SIZE = 36
-WINDOW = 12
+SIZE = 32
+WINDOW = 6
 INPUT = 4
 OUTPUT = 2
 
@@ -120,9 +120,7 @@ def generator(n, m, yrs, btch):
 
     global mass, sun
 
-    n = int(n)
-    m = int(m)
-    pv = int(n + 1)
+    pv = n + 1
     sz = n + m + 1
     mass = xp.array(xp.random.rand(btch, sz) / MSCALE, dtype=np.float)
     mass[:, 0] = np.ones([btch])
@@ -130,7 +128,7 @@ def generator(n, m, yrs, btch):
     x = SCALE / 4.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
     x[:, 0, :] = xp.zeros([btch, 3], dtype=xp.float64)
 
-    r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, INPUT + OUTPUT + 1, 1])
+    r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, sz, 1])
     v = xp.sqrt(au.G / r) * (2 * xp.random.rand(btch, sz, 3) - 1)
     v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
 
@@ -151,13 +149,13 @@ def generator(n, m, yrs, btch):
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
-            inputm = mass[:, 1:INPUT+1].reshape([btch, n, 1]) * MSCALE
+            inputm = mass[:, 1:n+1].reshape([btch, n, 1]) * MSCALE
             inputp = rtp[:, 1:pv].reshape([btch, n, 3])
-            inputdh = dh[:, 1:pv].reshape([btch, n, 1])
+            inputdh = dh[:, 1:pv].reshape([btch, n, 1]) / au.G * MSCALE * SCALE
             input = np.concatenate([inputm, inputdh, inputp], axis=2).reshape([btch, n * 5])
 
-            outputm = mass[:, INPUT+1:].reshape([btch, m, 1]) * MSCALE
-            outputp = rtp[:, pv:sz].reshape([btch, m, 3])
+            outputm = mass[:, n+1:].reshape([btch, m, 1]) * MSCALE
+            outputp = rtp[:, pv:].reshape([btch, m, 3])
             output = np.concatenate([outputm, outputp], axis=2).reshape([btch, m * 4])
             yield year, input, output
             lasth = ht
@@ -167,10 +165,8 @@ def generator(n, m, yrs, btch):
     lasttime = time.time()
 
 
-@rebatch(repeat=REPEAT)
-@shuffle(shufflefn, repeat=REPEAT)
-@data(swap=[0, 2, 3, 4, 1])
-@sequential(['ds.x'], ['ds.y'], layout_in=[BATCH, SIZE, INPUT, 5], layout_out=[BATCH, SIZE, OUTPUT, 4])
+@data()
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 5], layout_out=[SIZE, BATCH, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
@@ -208,11 +204,11 @@ class Guess(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, num_classes=48 * WINDOW):
+    def __init__(self, num_classes=8 * WINDOW * (INPUT + OUTPUT)):
         super(Encoder, self).__init__()
 
-        self.normal = nn.BatchNorm1d(30 * WINDOW)
-        self.layer1 = self._make_layer(30 * WINDOW, 512)
+        self.normal = nn.BatchNorm1d(5 * WINDOW * (INPUT + OUTPUT))
+        self.layer1 = self._make_layer(5 * WINDOW * (INPUT + OUTPUT), 512)
         self.layer2 = self._make_layer(512, 1024)
         self.layer3 = self._make_layer(1024, 2048)
         self.linear = nn.Linear(2048, num_classes)
@@ -231,17 +227,17 @@ class Encoder(nn.Module):
         out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, WINDOW, 6)
+        out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
         out = F.tanh(out)
         return out
 
 
 class Decoder(nn.Module):
-    def __init__(self, num_classes=6):
+    def __init__(self, num_classes=3 * OUTPUT):
         super(Decoder, self).__init__()
 
-        self.normal = nn.BatchNorm1d(54 * WINDOW)
-        self.layer1 = self._make_layer(54 * WINDOW, 1024)
+        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
+        self.layer1 = self._make_layer(9 * WINDOW * (INPUT + OUTPUT), 1024)
         self.layer2 = self._make_layer(1024, 2048)
         self.layer3 = self._make_layer(2048, 2048)
         self.linear = nn.Linear(2048, num_classes)
@@ -260,7 +256,7 @@ class Decoder(nn.Module):
         out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 3, 1, 2)
+        out = out.view(out.size(0), 3, 1, OUTPUT)
         out = F.tanh(out)
         return out
 
@@ -269,8 +265,8 @@ class Evolve(nn.Module):
     def __init__(self, num_classes=8 * WINDOW * (INPUT + OUTPUT)):
         super(Evolve, self).__init__()
 
-        self.normal = nn.BatchNorm1d(54 * WINDOW)
-        self.layer1 = self._make_layer(54 * WINDOW, 1024)
+        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
+        self.layer1 = self._make_layer(9 * WINDOW * (INPUT + OUTPUT), 1024)
         self.layer2 = self._make_layer(1024, 2048)
         self.layer3 = self._make_layer(2048, 2048)
         self.linear = nn.Linear(2048, num_classes)
@@ -298,11 +294,11 @@ class Gate(nn.Module):
     def __init__(self):
         super(Gate, self).__init__()
 
-        self.normal = nn.BatchNorm1d(54 * WINDOW)
-        self.layer1 = self._make_layer(54 * WINDOW, 1024)
+        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
+        self.layer1 = self._make_layer(9 * WINDOW * (INPUT + OUTPUT), 1024)
         self.layer2 = self._make_layer(1024, 2048)
         self.layer3 = self._make_layer(2048, 2048)
-        self.linear = nn.Linear(2048, 6)
+        self.linear = nn.Linear(2048, 3 * OUTPUT)
 
     def _make_layer(self, num_in, num_out):
         return nn.Sequential(
@@ -318,7 +314,7 @@ class Gate(nn.Module):
         out = self.layer3(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 3, 1, 2)
+        out = out.view(out.size(0), 3, 1, OUTPUT)
         out = F.sigmoid(out)
         return out
 
@@ -339,7 +335,7 @@ class Model(nn.Module):
         self.batch = new_val
 
     def forward(self, x):
-        x = th.squeeze(x, dim=2).permute(0, 2, 1, 3, 4).contiguous()
+        x = x.permute(0, 2, 4, 1, 3).contiguous()
         sr, sb, sc, ss, si = tuple(x.size())
         x = x.view(sr * sb, sc, ss, si)
 
@@ -405,11 +401,11 @@ def loss(xs, ys, result):
     global counter, lasttime
     counter = counter + 1
 
-    xs = xs.permute(0, 2, 1, 3, 4).contiguous()
+    xs = xs.permute(0, 2, 4, 1, 3).contiguous()
     sr, sb, sc, ss, si = tuple(xs.size())
     xs = xs.view(sr * sb, sc, ss, si)
 
-    ys = ys.permute(0, 2, 1, 3, 4).contiguous()
+    ys = ys.permute(0, 2, 4, 1, 3).contiguous()
     sr, sb, sc, ss, si = tuple(ys.size())
     ys = ys.view(sr * sb, sc, ss, si)
 

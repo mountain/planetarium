@@ -194,8 +194,7 @@ class StandardLearner(BaseLearner):
 
     def test_step(self, xs, ys):
         output = self.predict(xs)
-        szy = ys.size()[1]
-        return output, self.loss(xs, ys, output[:, 0:szy])
+        return output, self.loss(xs, ys, output)
 
     def learn_step(self, xs, ys, retain_graph=False):
         self.optimizer.zero_grad()
