@@ -369,8 +369,6 @@ class Model(nn.Module):
             self.state = self.evolve(envr)
             gate = self.gate(envr)
             target = gate * self.decode(envr)
-            scopefix = 35
-            target = scopefix * target
 
             if i >= SIZE - WINDOW:
                 result[:, :, i::SIZE, :] = target
