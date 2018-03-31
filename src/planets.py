@@ -41,7 +41,7 @@ MSCALE = 500.0
 
 BATCH = 3
 REPEAT = 600
-SIZE = 32
+SIZE = 30
 WINDOW = 6
 INPUT = 4
 OUTPUT = 2
@@ -57,25 +57,25 @@ lasttime = time.time()
 
 def shufflefn(xs, ys):
     # permute on different input
-    perm = np.arange(xs.shape[-1])
+    perm = np.arange(xs.shape[-2])
     np.random.shuffle(perm)
-    xs = xs[:, :, :, :, perm]
+    xs = xs[:, :, :, perm, :]
 
     # permute on different out
-    perm = np.arange(ys.shape[-1])
+    perm = np.arange(ys.shape[-2])
     np.random.shuffle(perm)
-    ys = ys[:, :, :, :, perm]
+    ys = ys[:, :, :, perm, :]
 
     # permute on different space dims
     seg = np.arange(2, 5, 1)
     np.random.shuffle(seg)
 
     perm = np.concatenate((np.array([0, 1]), seg))
-    xs = xs[:, perm, :, :, :]
+    xs = xs[:, :, :, :, perm]
 
     seg = seg - 1
     perm = np.concatenate((np.array([0]), seg))
-    ys = ys[:, perm, :, :, :]
+    ys = ys[:, :, :, :, perm]
 
     return xs, ys
 
@@ -165,6 +165,8 @@ def generator(n, m, yrs, btch):
     lasttime = time.time()
 
 
+@rebatch(repeat=REPEAT)
+@shuffle(shufflefn, repeat=REPEAT)
 @data()
 @sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 5], layout_out=[SIZE, BATCH, OUTPUT, 4])
 @divid(lengths=[SIZE], names=['ds'])
