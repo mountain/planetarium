@@ -315,7 +315,8 @@ class Gate(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, OUTPUT)
-        out = th.exp(F.tanh(out))
+        out = F.sigmoid(out)
+        out = 1 / (0.01 + 2 * out)
         return out
 
 
@@ -396,7 +397,7 @@ class Model(nn.Module):
             self.state = self.evolve(envr)
             ratio = self.ratio(envr)
             gate = self.gate(envr)
-            target = 25 * gate * self.decode(envr)
+            target = gate * self.decode(envr)
 
             if i >= SIZE - WINDOW:
                 result[:, :, i::SIZE, :] = target
@@ -409,9 +410,11 @@ class Model(nn.Module):
                 gposn = guess[:, 1:4, 0::WINDOW, :]
                 result[:, :, i::SIZE, :] = ratio * target + (1 - ratio) * gposn
 
+            print('-----------------------------')
             print('gate:', th.max(gate.data), th.min(gate.data))
             print('ratio:', th.max(ratio.data), th.min(ratio.data))
             print('gscope:', th.max(target.data) - th.min(target.data))
+            print('-----------------------------')
             sys.stdout.flush()
 
         gmass = th.cat([gmass for _ in range(int(SIZE / WINDOW))], dim=2)
