@@ -125,7 +125,7 @@ def generator(n, m, yrs, btch):
     mass = xp.array(xp.random.rand(btch, sz) / MSCALE, dtype=np.float)
     mass[:, 0] = np.ones([btch])
 
-    x = SCALE / 4.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
+    x = SCALE / 2.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
     x[:, 0, :] = xp.zeros([btch, 3], dtype=xp.float64)
 
     r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, sz, 1])
