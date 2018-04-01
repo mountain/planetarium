@@ -230,7 +230,7 @@ class Evolve(nn.Module):
         xs = []
         for i in range(b):
             vec = out[i]
-            u, s, v = th.svd(status[i])
+            u, p, v = th.svd(status[i])
             xs.append(th.mv(v, vec))
 
         result = th.cat(xs, dim=0).view(b, c, s, n)
