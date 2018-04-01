@@ -213,8 +213,8 @@ class Evolve(nn.Module):
         self.elu = nn.ELU()
 
         self.o = Variable(cast(np.random.rand(basedim, basedim)))
-        self.b0 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.b1 = Variable(cast(np.random.rand(basedim, basedim)))
+        self.b0 = Variable(cast(np.zeros([1])))
+        self.b1 = Variable(cast(np.zeros([1])))
         self.v = Variable(cast(np.random.rand(basedim, 1)))
 
     def forward(self, x):
