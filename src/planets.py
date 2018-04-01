@@ -231,7 +231,7 @@ class Evolve(nn.Module):
         for i in range(b):
             vec = out[i]
             e, m = th.symeig(status[i])
-            v = th.mm(th.t(m), m)
+            v = th.mm(m, th.t(m))
             xs.append(th.mv(v, vec))
 
         result = th.cat(xs, dim=0).view(b, c, s, n)
