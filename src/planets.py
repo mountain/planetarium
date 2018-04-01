@@ -198,7 +198,6 @@ class Guess(nn.Module):
         out = self.normal(out)
         out = out.view(out.size(0), -1, 1, 1)
         out = self.lstm(out)
-        print('lstm:', th.max(out.data), th.min(out.data))
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
@@ -210,10 +209,10 @@ class Evolve(nn.Module):
     def __init__(self, basedim=1):
         super(Evolve, self).__init__()
         self.basedim = basedim
-        self.r = Variable(cast(np.zeros([basedim, basedim])))
-        self.o1 = Variable(cast(np.zeros([basedim, basedim])))
+        self.r = Variable(cast(np.random.rand(basedim, basedim)))
+        self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
         self.b1 = Variable(cast(np.zeros([1])))
-        self.o2 = Variable(cast(np.zeros([basedim, basedim])))
+        self.o2 = Variable(cast(np.random.rand(basedim, basedim)))
         self.b2 = Variable(cast(np.zeros([1])))
 
     def forward(self, x):
@@ -236,7 +235,11 @@ class Evolve(nn.Module):
             m, i = th.max(e[:, 0], 0)
             xv = v[i]
             xs.append(xv)
-        return th.cat(xs, dim=0).view(b, c, s, n)
+
+        result = th.cat(xs, dim=0).view(b, c, s, n)
+        print('evolve:', th.max(result.data), th.min(result.data))
+
+        return result
 
 
 class Ratio(nn.Module):
