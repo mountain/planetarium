@@ -21,8 +21,8 @@ class ConvLSTM(th.nn.Module):
         self.o = nn.Conv2d(ch_in, ch_out, ksize, padding=padding)
         self.C = nn.Conv2d(ch_in, ch_out, ksize, padding=padding)
 
-        self.state = Variable(th.zeros([bsize, ch_out, width, height]))
-        self.history = Variable(th.zeros([bsize, ch_out, width, height]))
+        self.state = Variable(th.rand(bsize, ch_out, width, height))
+        self.history = Variable(th.rand(bsize, ch_out, width, height))
         self.old_state = None
         self.old_history = None
 
@@ -32,8 +32,8 @@ class ConvLSTM(th.nn.Module):
 
     def reset(self):
         sizes = list(self.state.data.size())
-        self.state = Variable(th.zeros(sizes))
-        self.history = Variable(th.zeros(sizes))
+        self.state = Variable(th.rand(*sizes))
+        self.history = Variable(th.rand(*sizes))
         self.old_state = None
         self.old_history = None
 
