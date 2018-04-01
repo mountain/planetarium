@@ -371,7 +371,7 @@ class Model(nn.Module):
             target = self.decode(envr)
 
             if i >= SIZE - WINDOW:
-                result[:, :, i::SIZE, :] = target
+                update = target
             else:
                 init_p = p[:, :, i:WINDOW+i, :]
                 init_dh = dh[:, :, i:WINDOW+i, :]
@@ -379,7 +379,10 @@ class Model(nn.Module):
                 guess = self.guess(init)
                 guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
                 gposn = guess[:, 1:4, 0::WINDOW, :]
-                result[:, :, i::SIZE, :] = ratio * target + (1 - ratio) * gposn
+                update = ratio * target + (1 - ratio) * gposn
+
+            scope = th.max(update.data) - th.min(update.data)
+            result[:, :, i::SIZE, :] = update / scope
 
             print('-----------------------------')
             print('ratio:', th.max(ratio.data), th.min(ratio.data))
