@@ -229,7 +229,7 @@ class Evolve(nn.Module):
         status = th.tanh(th.bmm(th.bmm(self.o1, status), th.transpose(self.o1)) + self.b1)
         status = th.tanh(th.bmm(th.bmm(self.o2, status), th.transpose(self.o2)) + self.b2)
 
-        vs = (th.eig(status, eigenvectors=True)[1].view(1, -1) for _ in range(b))
+        vs = (th.eig(status[i], eigenvectors=True)[1].view(1, -1) for i in range(b))
         return th.cat(vs, dim=0).view(b, c, s, n)
 
 
