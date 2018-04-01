@@ -267,6 +267,10 @@ class Ratio(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 8, 1, OUTPUT)
         out = F.sigmoid(out)
+
+        print('ratio:', th.max(out.data), th.min(out.data))
+        sys.stdout.flush()
+
         return out
 
 
@@ -296,6 +300,10 @@ class Model(nn.Module):
         guess = self.guess(init.contiguous())
         state = th.cat((init, guess), dim=3)
         for i in range(SIZE):
+            print('-----------------------------')
+            print('idx:', i)
+            sys.stdout.flush()
+
             ratio = self.ratio(state)
             target = state[:, :, :, INPUT:]
 
