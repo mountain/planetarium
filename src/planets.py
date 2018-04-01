@@ -214,7 +214,6 @@ class Evolve(nn.Module):
         self.r = Variable(cast((r + r.T) / 2))
         self.o = Variable(cast(np.random.rand(basedim, basedim)))
         self.b = Variable(cast(np.zeros([1])))
-        self.relu = nn.ReLU()
 
     def forward(self, x):
         b, c, s, n = x.size()
@@ -226,7 +225,7 @@ class Evolve(nn.Module):
         r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
         status = th.bmm(th.bmm(state, r), state)
         o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
-        status = self.relu(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b)
+        status = th.tanh(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b)
 
         xs = []
         for i in range(b):
