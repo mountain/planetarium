@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
-from flare.nn.lstm import ConvLSTM
+from flare.nn.lstm import ConvLSTM, StackedConvLSTM
 from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, rebatch
 
 
@@ -182,7 +182,7 @@ class Guess(nn.Module):
         super(Guess, self).__init__()
 
         self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
-        self.lstm = ConvLSTM(4 * WINDOW * INPUT, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 4 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(1024, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -208,7 +208,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
 
         self.normal = nn.BatchNorm1d(5 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(5 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 5 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -234,7 +234,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 9 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -260,7 +260,7 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 9 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -278,33 +278,6 @@ class Evolve(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
         out = F.tanh(out)
-        return out
-
-
-class Gate(nn.Module):
-    def __init__(self):
-        super(Gate, self).__init__()
-
-        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 3 * OUTPUT)
-
-    def batch_size_changed(self, new_val, orig_val):
-        new_val = new_val * REPEAT
-        self.batch = new_val
-        self.lstm.batch_size_changed(orig_val, orig_val, force=True)
-        self.lstm.reset()
-
-    def forward(self, x):
-        out = x.view(x.size(0), -1)
-        out = self.normal(out)
-        out = out.view(out.size(0), -1, 1, 1)
-        out = self.lstm(out)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        out = out.view(out.size(0), 3, 1, OUTPUT)
-        out = F.sigmoid(out)
-        out = 1 / (0.01 + 2 * out)
         return out
 
 
@@ -344,7 +317,6 @@ class Model(nn.Module):
         self.encode = Encoder()
         self.decode = Decoder()
         self.evolve = Evolve()
-        self.gate = Gate()
         self.ratio = Ratio()
 
     def batch_size_changed(self, new_val, orig_val):
@@ -384,8 +356,7 @@ class Model(nn.Module):
             envr = th.cat((self.gmass, self.state), dim=1)
             self.state = self.evolve(envr)
             ratio = self.ratio(envr)
-            gate = self.gate(envr)
-            target = gate * self.decode(envr)
+            target = self.decode(envr)
 
             if i >= SIZE - WINDOW:
                 result[:, :, i::SIZE, :] = target
@@ -399,7 +370,6 @@ class Model(nn.Module):
                 result[:, :, i::SIZE, :] = ratio * target + (1 - ratio) * gposn
 
             print('-----------------------------')
-            print('gate:', th.max(gate.data), th.min(gate.data))
             print('ratio:', th.max(ratio.data), th.min(ratio.data))
             print('gscope:', th.max(target.data) - th.min(target.data))
             print('-----------------------------')
