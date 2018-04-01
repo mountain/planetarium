@@ -385,8 +385,8 @@ class Model(nn.Module):
             result[:, :, i::SIZE, :] = update / scope
 
             print('-----------------------------')
-            print('ratio:', th.max(ratio.data), th.min(ratio.data))
             print('scope:', th.max(update.data) - th.min(update.data))
+            print('ratio:', th.max(ratio.data), th.min(ratio.data))
             print('frame:', th.max(update.data), th.min(update.data))
             print('-----------------------------')
             sys.stdout.flush()
