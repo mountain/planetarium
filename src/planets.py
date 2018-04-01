@@ -145,6 +145,7 @@ def generator(n, m, yrs, btch):
         if year != lastyear:
             lastyear = year
             rtp = x / SCALE
+            rtv = v / SCALE
             ht = h(x, v)
             dh = ht - lasth
 
@@ -152,12 +153,15 @@ def generator(n, m, yrs, btch):
 
             inputm = mass[:, 1:n+1].reshape([btch, n, 1]) * MSCALE
             inputp = rtp[:, 1:pv].reshape([btch, n, 3])
+            inputv = rtv[:, 1:pv].reshape([btch, n, 3])
             inputdh = dh[:, 1:pv].reshape([btch, n, 1]) / au.G * MSCALE * SCALE
-            input = np.concatenate([inputm, inputdh, inputp], axis=2).reshape([btch, n * 5])
+            input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
             outputm = mass[:, n+1:].reshape([btch, m, 1]) * MSCALE
             outputp = rtp[:, pv:].reshape([btch, m, 3])
-            output = np.concatenate([outputm, outputp], axis=2).reshape([btch, m * 4])
+            outputv = rtv[:, pv:].reshape([btch, m, 3])
+            outputdh = dh[:, pv:].reshape([btch, m, 1]) / au.G * MSCALE * SCALE
+            output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
             yield year, input, output
             lasth = ht
 
@@ -178,11 +182,11 @@ def dataset():
 
 
 class Guess(nn.Module):
-    def __init__(self, num_classes=5 * WINDOW * OUTPUT):
+    def __init__(self, num_classes=8 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
-        self.lstm = StackedConvLSTM(1, 4 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.normal = nn.BatchNorm1d(8 * WINDOW * INPUT)
+        self.lstm = StackedConvLSTM(1, 8 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(1024, num_classes, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -199,96 +203,46 @@ class Guess(nn.Module):
         print('lstm:', th.max(out.data), th.min(out.data))
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 5, WINDOW, OUTPUT)
+        out = out.view(out.size(0), 8, WINDOW, OUTPUT)
         print('guess:', th.max(out.data), th.min(out.data))
         return out
 
 
-class Encoder(nn.Module):
-    def __init__(self, num_classes=8 * WINDOW * (INPUT + OUTPUT)):
-        super(Encoder, self).__init__()
-
-        self.normal = nn.BatchNorm1d(5 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(5 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes, bias=False)
-
-    def batch_size_changed(self, new_val, orig_val):
-        new_val = new_val * REPEAT
-        self.batch = new_val
-        self.lstm.batch_size_changed(orig_val, orig_val, force=True)
-        self.lstm.reset()
-
-    def forward(self, x):
-        out = x.view(x.size(0), -1)
-        out = self.normal(out)
-        out = out.view(out.size(0), -1, 1, 1)
-        out = self.lstm(out)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
-        print('encoder:', th.max(out.data), th.min(out.data))
-        return out
-
-
-class Decoder(nn.Module):
-    def __init__(self, num_classes=3 * OUTPUT):
-        super(Decoder, self).__init__()
-
-        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes, bias=False)
-
-    def batch_size_changed(self, new_val, orig_val):
-        new_val = new_val * REPEAT
-        self.batch = new_val
-        self.lstm.batch_size_changed(orig_val, orig_val, force=True)
-        self.lstm.reset()
-
-    def forward(self, x):
-        out = x.view(x.size(0), -1)
-        out = self.normal(out)
-        out = out.view(out.size(0), -1, 1, 1)
-        out = self.lstm(out)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        out = out.view(out.size(0), 3, 1, OUTPUT)
-        print('decoder:', th.max(out.data), th.min(out.data))
-        return out
-
-
 class Evolve(nn.Module):
-    def __init__(self, num_classes=8 * WINDOW * (INPUT + OUTPUT)):
+    def __init__(self, basedim=1):
         super(Evolve, self).__init__()
-
-        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = StackedConvLSTM(1, 9 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes, bias=False)
-
-    def batch_size_changed(self, new_val, orig_val):
-        new_val = new_val * REPEAT
-        self.batch = new_val
-        self.lstm.batch_size_changed(orig_val, orig_val, force=True)
-        self.lstm.reset()
+        self.basedim = basedim
+        self.r = Variable(cast(np.zeros([basedim, basedim])))
+        self.o1 = Variable(cast(np.zeros([basedim, basedim])))
+        self.b1 = Variable(cast(np.zeros([1])))
+        self.o2 = Variable(cast(np.zeros([basedim, basedim])))
+        self.b2 = Variable(cast(np.zeros([1])))
 
     def forward(self, x):
         out = x.view(x.size(0), -1)
-        out = self.normal(out)
-        out = out.view(out.size(0), -1, 1, 1)
-        out = self.lstm(out)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
-        print('evolve:', th.max(out.data), th.min(out.data))
-        return out
+        dim = out.size(1)
+        assert dim == self.basedim
+
+        base = th.cat([out for _ in range(dim)], dim=-1)
+        batch = base.size(0)
+
+        stateh = base.view(batch, self.basedim, self.basedim)
+        statev = base.view(batch, self.basedim, self.basedim)
+        status = th.bmm(th.bmm(stateh, self.r), statev)
+        status = th.tanh(th.bmm(th.bmm(self.o1, status), th.transpose(self.o1)) + self.b1)
+        status = th.tanh(th.bmm(th.bmm(self.o2, status), th.transpose(self.o2)) + self.b2)
+
+        vs = (th.eig(status, eigenvectors=True)[1].view(1, -1) for _ in range(batch))
+        return th.cat(vs, dim=0)
 
 
 class Ratio(nn.Module):
     def __init__(self):
         super(Ratio, self).__init__()
 
-        self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 3 * OUTPUT, bias=False)
+        self.normal = nn.BatchNorm1d(8 * WINDOW * (INPUT + OUTPUT))
+        self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.linear = nn.Linear(2048, 8 * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -303,29 +257,24 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 3, 1, OUTPUT)
+        out = out.view(out.size(0), 8, 1, OUTPUT)
         out = F.sigmoid(out)
         return out
 
 
 class Model(nn.Module):
-    def __init__(self, bsize=1, omass=None):
+    def __init__(self, bsize=1):
         super(Model, self).__init__()
         self.batch = bsize
-        self.omass = omass
+        self.basedim = 8 * WINDOW * (INPUT + OUTPUT)
 
         self.guess = Guess()
-        self.encode = Encoder()
-        self.decode = Decoder()
-        self.evolve = Evolve()
+        self.evolve = Evolve(self.basedim)
         self.ratio = Ratio()
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
         self.guess.batch_size_changed(new_val, orig_val)
-        self.encode.batch_size_changed(new_val, orig_val)
-        self.decode.batch_size_changed(new_val, orig_val)
-        self.evolve.batch_size_changed(new_val, orig_val)
         self.ratio.batch_size_changed(new_val, orig_val)
 
     def forward(self, x):
@@ -333,60 +282,30 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         x = x.view(sr * sb, sc, ss, si)
 
-        m = x[:, 0:1, :, :]
-        dh = x[:, 1:2, :, :]
-        p = x[:, 2:5, :, :]
+        result = Variable(cast(np.zeros([sr * sb, 8, SIZE, OUTPUT])))
 
-        result = Variable(cast(np.zeros([sr * sb, 3, SIZE, OUTPUT])))
-        self.merror = Variable(cast(np.zeros([sr * sb, 1, 1, 1])))
-
-        init_m = m[:, :, 0:WINDOW, :]
-        init_p = p[:, :, 0:WINDOW, :]
-        init_dh = dh[:, :, 0:WINDOW, :]
-        init = th.cat((init_p, init_dh), dim=1)
-        print('init:', th.max(init.data), th.min(init.data))
-
+        init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init)
-        guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
-        gmass = guess[:, 0:1, :, :]
-        gposn = guess[:, 1:4, :, :]
-        gdelh = guess[:, 4:5, :, :]
-
-        self.tmass = m
-        self.gmass = th.cat((init_m, gmass), dim=3)
-        self.posn = th.cat((init_p, gposn), dim=3)
-        self.delh = th.cat((init_dh, gdelh), dim=3)
-
-        self.state = self.encode(th.cat((self.gmass, self.posn, self.delh), dim=1))
+        state = th.cat((init, guess), dim=3)
         for i in range(SIZE):
-            envr = th.cat((self.gmass, self.state), dim=1)
-            self.state = self.evolve(envr)
-            ratio = self.ratio(envr)
-            target = self.decode(envr)
+            ratio = self.ratio(state)
+            target = state[:, :, :, INPUT:]
 
             if i >= SIZE - WINDOW:
                 update = target
             else:
-                init_p = p[:, :, i:WINDOW+i, :]
-                init_dh = dh[:, :, i:WINDOW+i, :]
-                init = th.cat((init_p, init_dh), dim=1)
+                init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init)
-                guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
-                gposn = guess[:, 1:4, 0::WINDOW, :]
-                update = ratio * target + (1 - ratio) * gposn
+                update = ratio * target + (1 - ratio) * guess
 
-            scope = th.max(update.data) - th.min(update.data)
-            result[:, :, i::SIZE, :] = update / scope
+            result[:, :, i::SIZE, :] = update
 
             print('-----------------------------')
-            print('scope:', th.max(update.data) - th.min(update.data))
             print('ratio:', th.max(ratio.data), th.min(ratio.data))
-            print('frame:', th.max(update.data), th.min(update.data))
             print('-----------------------------')
             sys.stdout.flush()
 
-        gmass = th.cat([gmass for _ in range(int(SIZE / WINDOW))], dim=2)
-        result = th.cat([gmass, result], dim=1)
+            state = self.evolve(state)
 
         return result
 
@@ -423,24 +342,27 @@ def loss(xs, ys, result):
     ys = ys.view(sr * sb, sc, ss, si)
 
     ms = ys[:, 0:1, :, :]
-    ps = ys[:, 1:4, :, :]
+    hs = ys[:, 1:2, :, :]
+    ps = ys[:, 2:5, :, :]
+    vs = ys[:, 5:8, :, :]
 
     gm = result[:, 0:1, :, :]
-    gp = result[:, 1:4, :, :]
+    gh = result[:, 1:2, :, :]
+    gp = result[:, 2:5, :, :]
+    gv = result[:, 5:8, :, :]
 
-    div = divergence_th(gp, ps)
-    sizes = tuple(div.size())
-    zeros = Variable(cast(np.zeros(sizes)), requires_grad=False)
-    lss = mse(div, zeros)
-    merror = mse(gm, ms)
+    pe = mse(gp, ps)
+    ve = mse(gv, vs)
+    me = mse(gm, ms)
+    he = mse(gh, hs)
 
-    print('-----------------------------')
-    print('tscope:', th.max(ps.data) - th.min(ps.data))
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
-    print('lss:', th.mean(th.sqrt(lss).data))
-    print('mer:', th.mean(th.sqrt(merror).data))
-    print('ttl:', th.mean(th.sqrt(lss + merror / 50).data))
+    print('per:', th.mean(th.sqrt(pe).data))
+    print('ver:', th.mean(th.sqrt(ve).data))
+    print('mer:', th.mean(th.sqrt(me).data))
+    print('her:', th.mean(th.sqrt(he).data))
+    print('ttl:', th.mean(th.sqrt(pe + ve + he + me / 500).data))
     print('-----------------------------')
     sys.stdout.flush()
     lasttime = time.time()
@@ -482,7 +404,7 @@ def loss(xs, ys, result):
         plt.savefig('data/pred.png')
         plt.close()
 
-    return th.mean(lss + merror / 50)
+    return th.mean(pe + ve + he + me / 50)
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH * REPEAT)
