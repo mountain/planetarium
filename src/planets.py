@@ -228,7 +228,7 @@ class Evolve(nn.Module):
         o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
         status = th.tanh(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b)
         v = th.cat([self.v.view(1, d, 1) for _ in range(b)], dim=0)
-        result = th.bmm(status, v).view(b, c, s, n)
+        result = th.tanh(th.bmm(status, v).view(b, c, s, n))
 
         print('realtn:', th.max(self.r.data), th.min(self.r.data))
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
