@@ -210,7 +210,8 @@ class Evolve(nn.Module):
     def __init__(self, basedim=1):
         super(Evolve, self).__init__()
         self.basedim = basedim
-        self.r = Variable(cast(np.zeros([basedim, basedim])))
+        r = np.random.rand(basedim, basedim)
+        self.r = Variable(cast((r + r.T) / 2))
         self.o = Variable(cast(np.random.rand(basedim, basedim)))
         self.b = Variable(cast(np.zeros([1])))
 
