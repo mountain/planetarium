@@ -230,7 +230,6 @@ class Evolve(nn.Module):
         v = th.cat([self.v.view(1, d, 1) for _ in range(b)], dim=0)
         result = self.elu(th.bmm(status, v) + self.b1).view(b, c, s, n)
 
-        print('realtn:', th.max(self.r.data), th.min(self.r.data))
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
         print('evolve:', th.max(result.data), th.min(result.data))
         sys.stdout.flush()
