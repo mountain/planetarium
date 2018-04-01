@@ -232,8 +232,8 @@ class Evolve(nn.Module):
 
         vs = []
         for i in range(b):
-            e,v = th.eig(status[i], eigenvectors=True)
-            m, i = th.max(e)
+            e, v = th.eig(status[i], eigenvectors=True)
+            m, i = th.max(e, 0)
             x = v[i].contiguous().view(1, d)
             vs.append(x)
         return th.cat(vs, dim=0).view(b, c, s, n)
