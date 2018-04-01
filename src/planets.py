@@ -210,7 +210,6 @@ class Evolve(nn.Module):
     def __init__(self, basedim=1):
         super(Evolve, self).__init__()
         self.basedim = basedim
-        self.elu = nn.ELU()
 
         self.o = Variable(cast(np.random.rand(basedim, basedim)))
         self.b0 = Variable(cast(np.zeros([1])))
@@ -226,9 +225,9 @@ class Evolve(nn.Module):
         status = base.view(b, d, d).contiguous()
 
         o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
-        status = self.elu(th.bmm(o, status) + self.b0)
+        status = th.tanh(th.bmm(o, status) + self.b0)
         v = th.cat([self.v.view(1, d, 1) for _ in range(b)], dim=0)
-        result = self.elu(th.bmm(status, v) + self.b1).view(b, c, s, n)
+        result = th.tanh(th.bmm(status, v) + self.b1).view(b, c, s, n)
 
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
         print('evolve:', th.max(result.data), th.min(result.data))
