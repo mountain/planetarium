@@ -231,7 +231,7 @@ class Evolve(nn.Module):
         for i in range(b):
             vec = out[i]
             u, s, v = th.svd(status[i])
-            xs.append(th.mm(vec, v))
+            xs.append(th.mv(v, vec))
 
         result = th.cat(xs, dim=0).view(b, c, s, n)
         print('realtn:', th.max(self.r.data), th.min(self.r.data))
