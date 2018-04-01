@@ -202,6 +202,7 @@ class Guess(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
         print('guess:', th.max(out.data), th.min(out.data))
+        sys.stdout.flush()
         return out
 
 
@@ -238,6 +239,7 @@ class Evolve(nn.Module):
 
         result = th.cat(xs, dim=0).view(b, c, s, n)
         print('evolve:', th.max(result.data), th.min(result.data))
+        sys.stdout.flush()
 
         return result
 
