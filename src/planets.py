@@ -210,11 +210,11 @@ class Evolve(nn.Module):
     def __init__(self, basedim=1):
         super(Evolve, self).__init__()
         self.basedim = basedim
-
+        r = np.random.rand(basedim, basedim)
+        self.r = Variable(cast(r + r.T))
         self.o = Variable(cast(np.random.rand(basedim, basedim)))
         self.b0 = Variable(cast(np.zeros([1])))
         self.b1 = Variable(cast(np.zeros([1])))
-        self.v = Variable(cast(np.random.rand(basedim, 1)))
 
     def forward(self, x):
         b, c, s, n = x.size()
@@ -222,13 +222,17 @@ class Evolve(nn.Module):
         out = x.view(b, d).contiguous()
 
         base = th.cat([out for _ in range(d)], dim=-1)
-        status = base.view(b, d, d).contiguous()
+        state = base.view(b, d, d).contiguous()
+
+        r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
+        status = th.tanh(th.bmm(th.bmm(state, r), state) + self.b0)
 
         o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(o, status) + self.b0)
-        v = th.cat([self.v.view(1, d, 1) for _ in range(b)], dim=0)
-        result = th.tanh(th.bmm(status, v) + self.b1).view(b, c, s, n)
+        status = th.tanh(th.bmm(th.bmm(status, o), status) + self.b1)
 
+        result = th.sum(status, dim=-1).view(b, c, s, n)
+
+        print('relatn:', th.max(self.r.data), th.min(self.r.data))
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
         print('evolve:', th.max(result.data), th.min(result.data))
         sys.stdout.flush()
@@ -318,7 +322,7 @@ class Model(nn.Module):
 mse = nn.MSELoss()
 
 model = Model(bsize=BATCH)
-optimizer = optim.Adam(model.parameters(), lr=1, weight_decay=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-8)
 
 
 def predict(xs):
