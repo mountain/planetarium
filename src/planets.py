@@ -212,7 +212,8 @@ class Evolve(nn.Module):
         self.basedim = basedim
         r = np.random.rand(basedim, basedim)
         self.r = Variable(cast(r + r.T))
-        self.o = Variable(cast(np.random.rand(basedim, basedim)))
+        self.o0 = Variable(cast(np.random.rand(basedim, basedim)))
+        self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
         self.b0 = Variable(cast(np.zeros([1])))
         self.b1 = Variable(cast(np.zeros([1])))
 
@@ -225,12 +226,14 @@ class Evolve(nn.Module):
         state = base.view(b, d, d).contiguous()
 
         r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(th.bmm(state, r), state) + self.b0)
+        status = th.bmm(th.bmm(state, r), state)
 
-        o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(th.bmm(status, o), status) + self.b1)
+        o = th.cat([self.o0.view(1, d, d) for _ in range(b)], dim=0)
+        a = th.tanh(th.bmm(th.bmm(status, o), status) + self.b0)
+        o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
+        b = th.reciprocal(th.tanh(th.bmm(th.bmm(status, o), status)) + self.b1)
 
-        result = th.sum(status, dim=-1).view(b, c, s, n)
+        result = th.sum(a * b, dim=-1).view(b, c, s, n)
 
         print('relatn:', th.max(self.r.data), th.min(self.r.data))
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
