@@ -239,7 +239,8 @@ class Evolve(nn.Module):
         result = th.tanh(th.bmm(status, v).view(b, c, s, n))
 
         print('realtn:', th.max(self.r.data), th.min(self.r.data))
-        print('opertn:', th.max(self.o.data), th.min(self.o.data))
+        print('opertn:', th.max(self.o1.data), th.min(self.o1.data))
+        print('opertn:', th.max(self.o2.data), th.min(self.o2.data))
         print('evolve:', th.max(result.data), th.min(result.data))
         sys.stdout.flush()
 
