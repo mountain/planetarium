@@ -347,6 +347,7 @@ class Model(nn.Module):
         init_p = p[:, :, 0:WINDOW, :]
         init_dh = dh[:, :, 0:WINDOW, :]
         init = th.cat((init_p, init_dh), dim=1)
+        print('init:', th.max(init.data), th.min(init.data))
 
         guess = self.guess(init)
         guess = guess.view(sr * sb, 5, WINDOW, OUTPUT)
