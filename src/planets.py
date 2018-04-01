@@ -173,7 +173,7 @@ def generator(n, m, yrs, btch):
 @rebatch(repeat=REPEAT)
 @shuffle(shufflefn, repeat=REPEAT)
 @data()
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 5], layout_out=[SIZE, BATCH, OUTPUT, 4])
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 8], layout_out=[SIZE, BATCH, OUTPUT, 8])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
