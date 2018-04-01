@@ -321,7 +321,11 @@ class Model(nn.Module):
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
-        self.gate.batch_size_changed(new_val, orig_val)
+        self.guess.batch_size_changed(new_val, orig_val)
+        self.encode.batch_size_changed(new_val, orig_val)
+        self.decode.batch_size_changed(new_val, orig_val)
+        self.evolve.batch_size_changed(new_val, orig_val)
+        self.ratio.batch_size_changed(new_val, orig_val)
 
     def forward(self, x):
         x = x.permute(0, 2, 4, 1, 3).contiguous()
