@@ -293,7 +293,7 @@ class Model(nn.Module):
                 guess = self.guess(init.contiguous())
                 update = ratio * target + (1 - ratio) * guess
 
-            result[:, :, i::SIZE, :] = update
+            result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
 
             print('-----------------------------')
             print('ratio:', th.max(ratio.data), th.min(ratio.data))
