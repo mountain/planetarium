@@ -342,6 +342,8 @@ def loss(xs, ys, result):
     sr, sb, sc, ss, si = tuple(ys.size())
     ys = ys.view(sr * sb, sc, ss, si)
 
+    im = xs[:, 0:1, :, :]
+
     ms = ys[:, 0:1, :, :]
     hs = ys[:, 1:2, :, :]
     ps = ys[:, 2:5, :, :]
@@ -376,30 +378,30 @@ def loss(xs, ys, result):
             input = xs.data.cpu().numpy()[0, 2:5, :, :]
             truth = ps.data.cpu().numpy()[0, :, :, :]
             guess = result.data.cpu().numpy()[0, :, :, :]
-            mass = ms[0, 0, 0, :].data.cpu().numpy()
-            gmass = model.gmass[0, 0, 0, :].data.cpu().numpy()
-            tmass = model.tmass[0, 0, 0, :].data.cpu().numpy()
+            imass = im[0, 0, 0, :].data.cpu().numpy()
+            gmass = gm[0, 0, 0, :].data.cpu().numpy()
+            tmass = ms[0, 0, 0, :].data.cpu().numpy()
         else:
             input = xs.data.numpy()[0, 2:5, :, :]
             truth = ps.data.numpy()[0, :, :, :]
             guess = result.data.numpy()[0, :, :, :]
-            mass = ms[0, 0, 0, :].data.numpy()
-            gmass = model.gmass[0, 0, 0, :].data.numpy()
-            tmass = model.tmass[0, 0, 0, :].data.numpy()
+            imass = im[0, 0, 0, :].data.numpy()
+            gmass = gm[0, 0, 0, :].data.numpy()
+            tmass = ms[0, 0, 0, :].data.numpy()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(input[0, :, 0], input[1, :, 0], input[2, :, 0], 'o', markersize=tmass[0] * 6)
-        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=tmass[1] * 6)
-        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=tmass[2] * 6)
-        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=tmass[3] * 6)
+        ax.plot(input[0, :, 0], input[1, :, 0], input[2, :, 0], 'o', markersize=imass[0] * 6)
+        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=imass[1] * 6)
+        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=imass[2] * 6)
+        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=imass[3] * 6)
         plt.savefig('data/obsv.png')
         plt.close()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=mass[0] * 6)
-        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=mass[1] * 6)
+        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=tmass[0] * 6)
+        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=tmass[1] * 6)
         ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 6)
         ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 6)
         plt.savefig('data/pred.png')
