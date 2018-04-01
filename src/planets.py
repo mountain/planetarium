@@ -195,14 +195,11 @@ class Guess(nn.Module):
         out = x.view(x.size(0), -1)
         out = self.normal(out)
         out = out.view(out.size(0), -1, 1, 1)
-        print('normal:', th.max(out.data), th.min(out.data))
         out = self.lstm(out)
         print('lstm:', th.max(out.data), th.min(out.data))
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 5, WINDOW, OUTPUT)
-        print('linear:', th.max(out.data), th.min(out.data))
-        out = F.tanh(out)
         print('guess:', th.max(out.data), th.min(out.data))
         return out
 
@@ -229,7 +226,6 @@ class Encoder(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
-        out = F.tanh(out)
         print('encoder:', th.max(out.data), th.min(out.data))
         return out
 
@@ -256,7 +252,6 @@ class Decoder(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, OUTPUT)
-        out = F.tanh(out)
         print('decoder:', th.max(out.data), th.min(out.data))
         return out
 
@@ -283,7 +278,6 @@ class Evolve(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
-        out = F.tanh(out)
         print('evolve:', th.max(out.data), th.min(out.data))
         return out
 
