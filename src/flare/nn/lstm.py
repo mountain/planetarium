@@ -47,8 +47,8 @@ class ConvLSTM(th.nn.Module):
         if force or new_val != self.batch:
             self.old_state = self.state
             self.old_history = self.history
-            self.state = Variable(th.zeros(sizes))
-            self.history = Variable(th.zeros(sizes))
+            self.state = Variable(th.rand(*sizes))
+            self.history = Variable(th.rand(*sizes))
         elif self.old_state is not None:
             self.state = self.old_state
             self.history = self.old_history
