@@ -211,10 +211,9 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
         self.basedim = basedim
         r = np.random.rand(basedim, basedim)
-        self.r = Variable(cast((r + r.T) / 2))
-        self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.o2 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.b = Variable(cast(np.random.rand(basedim, basedim)))
+        self.o = Variable(cast(np.random.rand(basedim, basedim)))
+        self.b0 = Variable(cast(np.random.rand(basedim, basedim)))
+        self.b1 = Variable(cast(np.random.rand(basedim, basedim)))
         self.v = Variable(cast(np.random.rand(basedim, 1)))
 
     def forward(self, x):
@@ -223,24 +222,15 @@ class Evolve(nn.Module):
         out = x.view(b, d).contiguous()
 
         base = th.cat([out for _ in range(d)], dim=-1)
-        state = base.view(b, d, d).contiguous()
-        r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.bmm(state, r)
+        status = base.view(b, d, d).contiguous()
 
-        o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(o, status) + self.b)
-        status = F.dropout(status, 0.7)
-
-        o = th.cat([self.o2.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(o, status) + self.b)
-        status = F.dropout(status, 0.7)
-
+        o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
+        status = th.tanh(th.bmm(o, status) + self.b0)
         v = th.cat([self.v.view(1, d, 1) for _ in range(b)], dim=0)
-        result = th.tanh(th.bmm(status, v).view(b, c, s, n))
+        result = th.tanh(th.bmm(status, v) + self.b1).view(b, c, s, n)
 
         print('realtn:', th.max(self.r.data), th.min(self.r.data))
-        print('opertn:', th.max(self.o1.data), th.min(self.o1.data))
-        print('opertn:', th.max(self.o2.data), th.min(self.o2.data))
+        print('opertn:', th.max(self.o.data), th.min(self.o.data))
         print('evolve:', th.max(result.data), th.min(result.data))
         sys.stdout.flush()
 
