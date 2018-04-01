@@ -196,7 +196,7 @@ class Guess(nn.Module):
         self.lstm.reset()
 
     def forward(self, x):
-        out = x.view(x.size(0), -1)
+        out = x.view(x.size(0), -1).contiguous()
         out = self.normal(out)
         out = out.view(out.size(0), -1, 1, 1)
         out = self.lstm(out)
@@ -219,21 +219,18 @@ class Evolve(nn.Module):
         self.b2 = Variable(cast(np.zeros([1])))
 
     def forward(self, x):
-        out = x.view(x.size(0), -1)
-        dim = out.size(1)
-        assert dim == self.basedim
+        b, c, s, n = x.size()
+        d = c * s * n
+        out = x.view(b, d).contiguous()
 
-        base = th.cat([out for _ in range(dim)], dim=-1)
-        batch = base.size(0)
-
-        stateh = base.view(batch, self.basedim, self.basedim)
-        statev = base.view(batch, self.basedim, self.basedim)
-        status = th.bmm(th.bmm(stateh, self.r), statev)
+        base = th.cat([out for _ in range(d)], dim=-1)
+        state = base.view(b, d, d).contiguous()
+        status = th.bmm(th.bmm(state, self.r), state)
         status = th.tanh(th.bmm(th.bmm(self.o1, status), th.transpose(self.o1)) + self.b1)
         status = th.tanh(th.bmm(th.bmm(self.o2, status), th.transpose(self.o2)) + self.b2)
 
-        vs = (th.eig(status, eigenvectors=True)[1].view(1, -1) for _ in range(batch))
-        return th.cat(vs, dim=0)
+        vs = (th.eig(status, eigenvectors=True)[1].view(1, -1) for _ in range(b))
+        return th.cat(vs, dim=0).view(b, c, s, n)
 
 
 class Ratio(nn.Module):
