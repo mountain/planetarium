@@ -182,7 +182,7 @@ class Guess(nn.Module):
         super(Guess, self).__init__()
 
         self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
-        self.lstm = StackedConvLSTM(3, 4 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(1, 4 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(1024, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
