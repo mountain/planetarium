@@ -297,24 +297,26 @@ class Model(nn.Module):
         init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init.contiguous())
         state = th.cat((init, guess), dim=3)
-        for i in range(SIZE):
+        result[:, :, 0::SIZE, :] = guess[:, :, 0::SIZE, :]
+
+        for i in range(1, SIZE, 1):
             print('-----------------------------')
             print('idx:', i)
             sys.stdout.flush()
 
+            state = self.evolve(state)
+            input = state[:, :, :, :INPUT]
             target = state[:, :, :, INPUT:]
-            if i >= SIZE - WINDOW:
-                update = target
-            else:
+            if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
                 ratio = self.ratio(state)
                 update = ratio * target + (1 - ratio) * guess
-                state[:, :, :, INPUT:] = update.clone()
+            else:
+                update = target
 
             result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
-
-            state = self.evolve(state)
+            state = th.cat((input, update), dim=3)
 
         return result
 
