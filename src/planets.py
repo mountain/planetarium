@@ -213,8 +213,6 @@ class Evolve(nn.Module):
         self.r = Variable(cast(np.zeros([basedim, basedim])))
         self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
         self.b1 = Variable(cast(np.zeros([1])))
-        self.o2 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.b2 = Variable(cast(np.zeros([1])))
 
     def forward(self, x):
         b, c, s, n = x.size()
@@ -227,8 +225,6 @@ class Evolve(nn.Module):
         status = th.bmm(th.bmm(state, r), state)
         o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
         status = th.tanh(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b1)
-        o = th.cat([self.o2.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b2)
 
         xs = []
         for i in range(b):
