@@ -212,7 +212,8 @@ class Evolve(nn.Module):
         self.basedim = basedim
         r = np.random.rand(basedim, basedim)
         self.r = Variable(cast((r + r.T) / 2))
-        self.o = Variable(cast(np.random.rand(basedim, basedim)))
+        self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
+        self.o2 = Variable(cast(np.random.rand(basedim, basedim)))
         self.b = Variable(cast(np.random.rand(basedim, basedim)))
         self.v = Variable(cast(np.random.rand(basedim, 1)))
 
@@ -225,8 +226,15 @@ class Evolve(nn.Module):
         state = base.view(b, d, d).contiguous()
         r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
         status = th.bmm(state, r)
-        o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
+
+        o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
         status = th.tanh(th.bmm(o, status) + self.b)
+        status = F.dropout(status, 0.7)
+
+        o = th.cat([self.o2.view(1, d, d) for _ in range(b)], dim=0)
+        status = th.tanh(th.bmm(o, status) + self.b)
+        status = F.dropout(status, 0.7)
+
         v = th.cat([self.v.view(1, d, 1) for _ in range(b)], dim=0)
         result = th.tanh(th.bmm(status, v).view(b, c, s, n))
 
