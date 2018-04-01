@@ -223,7 +223,7 @@ class Evolve(nn.Module):
 
         base = th.cat([out for _ in range(d)], dim=-1)
         state = base.view(b, d, d).contiguous()
-        r = th.cat([self.r.view(1, -1) for _ in range(b)], dim=0)
+        r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
         status = th.bmm(th.bmm(state, r), state)
         status = th.tanh(th.bmm(th.bmm(self.o1, status), th.transpose(self.o1)) + self.b1)
         status = th.tanh(th.bmm(th.bmm(self.o2, status), th.transpose(self.o2)) + self.b2)
