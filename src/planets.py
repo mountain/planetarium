@@ -306,11 +306,6 @@ class Model(nn.Module):
 
             result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
 
-            print('-----------------------------')
-            print('ratio:', th.max(ratio.data), th.min(ratio.data))
-            print('-----------------------------')
-            sys.stdout.flush()
-
             state = self.evolve(state)
 
         return result
