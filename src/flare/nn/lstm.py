@@ -74,6 +74,12 @@ class ConvLSTM(th.nn.Module):
         state = gate_forget * self.state + gate_input * update
         output = gate_output * th.tanh(state)
 
+        print('forget:', th.max(gate_forget.data), th.min(gate_forget.data))
+        print('output:', th.max(gate_output.data), th.min(gate_output.data))
+        print('input:', th.max(gate_input.data), th.min(gate_input.data))
+        print('update:', th.max(update.data), th.min(update.data))
+        print('state:', th.max(state.data), th.min(state.data))
+
         self.state = state
         self.history = output
 
