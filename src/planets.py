@@ -208,7 +208,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
 
         self.normal = nn.BatchNorm1d(5 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = StackedConvLSTM(3, 5 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = ConvLSTM(5 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -234,7 +234,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = StackedConvLSTM(3, 9 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -260,7 +260,7 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = StackedConvLSTM(3, 9 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
