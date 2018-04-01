@@ -183,7 +183,7 @@ class Guess(nn.Module):
 
         self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
         self.lstm = StackedConvLSTM(1, 4 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(1024, num_classes)
+        self.linear = nn.Linear(1024, num_classes, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -213,7 +213,7 @@ class Encoder(nn.Module):
 
         self.normal = nn.BatchNorm1d(5 * WINDOW * (INPUT + OUTPUT))
         self.lstm = ConvLSTM(5 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes)
+        self.linear = nn.Linear(2048, num_classes, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -240,7 +240,7 @@ class Decoder(nn.Module):
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
         self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes)
+        self.linear = nn.Linear(2048, num_classes, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -267,7 +267,7 @@ class Evolve(nn.Module):
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
         self.lstm = StackedConvLSTM(1, 9 * WINDOW * (INPUT + OUTPUT), 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes)
+        self.linear = nn.Linear(2048, num_classes, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -294,7 +294,7 @@ class Ratio(nn.Module):
 
         self.normal = nn.BatchNorm1d(9 * WINDOW * (INPUT + OUTPUT))
         self.lstm = ConvLSTM(9 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 3 * OUTPUT)
+        self.linear = nn.Linear(2048, 3 * OUTPUT, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
