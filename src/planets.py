@@ -386,8 +386,8 @@ class Model(nn.Module):
 
             print('-----------------------------')
             print('ratio:', th.max(ratio.data), th.min(ratio.data))
-            print('gscope:', th.max(target.data) - th.min(target.data))
-            print('gscope:', th.max(gposn.data) - th.min(gposn.data))
+            print('scope:', th.max(update.data) - th.min(update.data))
+            print('frame:', th.max(update.data), th.min(update.data))
             print('-----------------------------')
             sys.stdout.flush()
 
