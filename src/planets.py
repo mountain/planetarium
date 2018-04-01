@@ -236,7 +236,8 @@ class Evolve(nn.Module):
         result = th.sum(u * v, dim=-1).view(b, c, s, n)
 
         print('relatn:', th.max(self.r.data), th.min(self.r.data))
-        print('opertn:', th.max(self.o.data), th.min(self.o.data))
+        print('opertn:', th.max(self.o0.data), th.min(self.o0.data))
+        print('opertn:', th.max(self.o1.data), th.min(self.o1.data))
         print('evolve:', th.max(result.data), th.min(result.data))
         sys.stdout.flush()
 
