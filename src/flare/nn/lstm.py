@@ -95,9 +95,9 @@ class StackedConvLSTM(th.nn.Module):
         for lstm in self._array_:
             lstm.reset()
 
-    def batch_size_changed(self, new_val, orig_val):
+    def batch_size_changed(self, new_val, orig_val, force=False):
         for l in self.lstm:
-            l.batch_size_changed(new_val, orig_val)
+            l.batch_size_changed(new_val, orig_val, force=force)
 
     def forward(self, x):
         result = self.lstm(x)
