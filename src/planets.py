@@ -302,16 +302,16 @@ class Model(nn.Module):
             print('idx:', i)
             sys.stdout.flush()
 
-            ratio = self.ratio(state)
             target = state[:, :, :, INPUT:]
-
             if i >= SIZE - WINDOW:
                 update = target
             else:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
+                ratio = self.ratio(state)
                 update = ratio * target + (1 - ratio) * guess
 
+            state[:, :, :, INPUT:] = update
             result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
 
             state = self.evolve(state)
