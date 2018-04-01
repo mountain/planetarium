@@ -211,8 +211,8 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
         self.basedim = basedim
         self.r = Variable(cast(np.zeros([basedim, basedim])))
-        self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.b1 = Variable(cast(np.zeros([1])))
+        self.o = Variable(cast(np.random.rand(basedim, basedim)))
+        self.b = Variable(cast(np.zeros([1])))
 
     def forward(self, x):
         b, c, s, n = x.size()
@@ -223,8 +223,8 @@ class Evolve(nn.Module):
         state = base.view(b, d, d).contiguous()
         r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
         status = th.bmm(th.bmm(state, r), state)
-        o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.tanh(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b1)
+        o = th.cat([self.o.view(1, d, d) for _ in range(b)], dim=0)
+        status = th.tanh(th.bmm(th.bmm(o, status), th.transpose(o, 1, 2)) + self.b)
 
         xs = []
         for i in range(b):
@@ -234,6 +234,8 @@ class Evolve(nn.Module):
             xs.append(xv)
 
         result = th.cat(xs, dim=0).view(b, c, s, n)
+        print('realtn:', th.max(self.r.data), th.min(self.r.data))
+        print('opertn:', th.max(self.o.data), th.min(self.o.data))
         print('evolve:', th.max(result.data), th.min(result.data))
         sys.stdout.flush()
 
