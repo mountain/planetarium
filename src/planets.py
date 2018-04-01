@@ -282,7 +282,7 @@ class Model(nn.Module):
         result = Variable(cast(np.zeros([sr * sb, 8, SIZE, OUTPUT])))
 
         init = x[:, :, 0:WINDOW, :]
-        guess = self.guess(init)
+        guess = self.guess(init.contiguous())
         state = th.cat((init, guess), dim=3)
         for i in range(SIZE):
             ratio = self.ratio(state)
@@ -292,7 +292,7 @@ class Model(nn.Module):
                 update = target
             else:
                 init = x[:, :, i:WINDOW+i, :]
-                guess = self.guess(init)
+                guess = self.guess(init.contiguous())
                 update = ratio * target + (1 - ratio) * guess
 
             result[:, :, i::SIZE, :] = update
