@@ -229,11 +229,11 @@ class Evolve(nn.Module):
         status = th.bmm(th.bmm(state, r), state)
 
         o = th.cat([self.o0.view(1, d, d) for _ in range(b)], dim=0)
-        a = th.tanh(th.bmm(th.bmm(status, o), status) + self.b0)
+        u = th.tanh(th.bmm(th.bmm(status, o), status) + self.b0)
         o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
-        b = th.reciprocal(th.tanh(th.bmm(th.bmm(status, o), status)) + self.b1)
+        v = th.reciprocal(th.tanh(th.bmm(th.bmm(status, o), status)) + self.b1)
 
-        result = th.sum(a * b, dim=-1).view(b, c, s, n)
+        result = th.sum(u * v, dim=-1).view(b, c, s, n)
 
         print('relatn:', th.max(self.r.data), th.min(self.r.data))
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
