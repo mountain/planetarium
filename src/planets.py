@@ -310,8 +310,8 @@ class Model(nn.Module):
                 guess = self.guess(init.contiguous())
                 ratio = self.ratio(state)
                 update = ratio * target + (1 - ratio) * guess
+                state[:, :, :, INPUT:] = update
 
-            state[:, :, :, INPUT:] = update
             result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
 
             state = self.evolve(state)
