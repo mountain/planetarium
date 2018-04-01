@@ -229,7 +229,7 @@ class Evolve(nn.Module):
 
         xs = []
         for i in range(b):
-            vec = x[i]
+            vec = out[i]
             u, s, v = th.svd(status[i])
             xs.append(th.mm(vec, v))
 
