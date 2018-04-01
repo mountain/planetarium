@@ -229,10 +229,9 @@ class Evolve(nn.Module):
 
         xs = []
         for i in range(b):
-            e, v = th.symeig(status[i], eigenvectors=True)
-            m, i = th.max(e, 0)
-            xv = v[i]
-            xs.append(xv)
+            vec = x[b]
+            u, s, v = th.svd(status[i])
+            xs.append(th.mm(vec, v))
 
         result = th.cat(xs, dim=0).view(b, c, s, n)
         print('realtn:', th.max(self.r.data), th.min(self.r.data))
