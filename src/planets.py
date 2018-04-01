@@ -238,7 +238,6 @@ class Evolve(nn.Module):
         print('realtn:', th.max(self.r.data), th.min(self.r.data))
         print('opertn:', th.max(self.o.data), th.min(self.o.data))
         print('evolve:', th.max(result.data), th.min(result.data))
-        print('eignvl:', m)
         sys.stdout.flush()
 
         return result
