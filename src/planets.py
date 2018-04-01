@@ -200,6 +200,7 @@ class Guess(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 5, WINDOW, OUTPUT)
         out = F.tanh(out)
+        print('guess:', th.max(out.data), th.min(out.data))
         return out
 
 
@@ -226,6 +227,7 @@ class Encoder(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
         out = F.tanh(out)
+        print('encoder:', th.max(out.data), th.min(out.data))
         return out
 
 
@@ -252,6 +254,7 @@ class Decoder(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 3, 1, OUTPUT)
         out = F.tanh(out)
+        print('decoder:', th.max(out.data), th.min(out.data))
         return out
 
 
@@ -278,6 +281,7 @@ class Evolve(nn.Module):
         out = self.linear(out)
         out = out.view(out.size(0), 8, WINDOW, (INPUT + OUTPUT))
         out = F.tanh(out)
+        print('evolve:', th.max(out.data), th.min(out.data))
         return out
 
 
