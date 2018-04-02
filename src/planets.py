@@ -64,7 +64,7 @@ def mnorm(x):
 
 
 def msize(x):
-    return int(x * 6.0)
+    return int(x * 20.0)
 
 
 def shufflefn(xs, ys):
