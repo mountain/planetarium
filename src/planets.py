@@ -59,6 +59,10 @@ sun = None
 lasttime = time.time()
 
 
+def mnorm(x):
+    return 1 / (2 + np.tanh(np.log(x)))
+
+
 def shufflefn(xs, ys):
     # permute on different input
     perm = np.arange(xs.shape[-2])
@@ -151,13 +155,13 @@ def generator(n, m, yrs, btch):
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
-            inputm = mass[:, 0:n].reshape([btch, n, 1])
+            inputm = mnorm(mass[:, 0:n].reshape([btch, n, 1]))
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
             inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
             inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
-            outputm = mass[:, n:].reshape([btch, m, 1])
+            outputm = mnorm(mass[:, n:].reshape([btch, m, 1]))
             outputp = rtp[:, n:].reshape([btch, m, 3])
             outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
             outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
