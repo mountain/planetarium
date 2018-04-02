@@ -41,6 +41,7 @@ epsilon = 0.00000001
 
 SCALE = 120.0
 MSCALE = 500.0
+VSCALE = 10000.0
 
 BATCH = 5
 REPEAT = 3
@@ -152,13 +153,13 @@ def generator(n, m, yrs, btch):
 
             inputm = mass[:, 0:n].reshape([btch, n, 1])
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
-            inputv = rtv[:, 0:n].reshape([btch, n, 3])
+            inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
             inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
             outputm = mass[:, n:].reshape([btch, m, 1])
             outputp = rtp[:, n:].reshape([btch, m, 3])
-            outputv = rtv[:, n:].reshape([btch, m, 3])
+            outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
             outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
             output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
             yield year, input, output
@@ -418,19 +419,19 @@ def loss(xs, ys, result):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=imass[1] * 50)
-        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=imass[2] * 50)
-        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=imass[3] * 50)
-        ax.plot(input[0, :, 4], input[1, :, 4], input[2, :, 4], 'o', markersize=imass[4] * 50)
+        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=imass[1] * 3000)
+        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=imass[2] * 3000)
+        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=imass[3] * 3000)
+        ax.plot(input[0, :, 4], input[1, :, 4], input[2, :, 4], 'o', markersize=imass[4] * 3000)
         plt.savefig('data/obsv.png')
         plt.close()
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=tmass[0] * 50)
-        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=tmass[1] * 50)
-        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 50)
-        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 50)
+        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=tmass[0] * 3000)
+        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=tmass[1] * 3000)
+        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 3000)
+        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 3000)
         plt.savefig('data/pred.png')
         plt.close()
 
