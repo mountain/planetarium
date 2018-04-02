@@ -150,13 +150,13 @@ def generator(n, m, yrs, btch):
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
-            inputm = mass[:, 0:n].reshape([btch, n, 1]) * MSCALE
+            inputm = mass[:, 0:n].reshape([btch, n, 1])
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
             inputv = rtv[:, 0:n].reshape([btch, n, 3])
             inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * MSCALE * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
-            outputm = mass[:, n:].reshape([btch, m, 1]) * MSCALE
+            outputm = mass[:, n:].reshape([btch, m, 1])
             outputp = rtp[:, n:].reshape([btch, m, 3])
             outputv = rtv[:, n:].reshape([btch, m, 3])
             outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * MSCALE * SCALE
