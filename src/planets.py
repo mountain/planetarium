@@ -44,8 +44,8 @@ MSCALE = 500.0
 
 BATCH = 5
 REPEAT = 3
-SIZE = 12
-WINDOW = 6
+SIZE = 36
+WINDOW = 12
 INPUT = 4
 OUTPUT = 2
 
@@ -423,7 +423,7 @@ def loss(xs, ys, result):
         plt.savefig('data/pred.png')
         plt.close()
 
-    return loss_nll
+    return th.sum(pe + ve + me / 50 + he)
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH * REPEAT)
