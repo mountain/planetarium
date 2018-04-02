@@ -159,7 +159,7 @@ def generator(n, m, yrs, btch):
             outputm = mass[:, n:].reshape([btch, m, 1])
             outputp = rtp[:, n:].reshape([btch, m, 3])
             outputv = rtv[:, n:].reshape([btch, m, 3])
-            outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * MSCALE * SCALE
+            outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
             output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
             yield year, input, output
             lasth = ht
