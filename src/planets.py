@@ -64,7 +64,7 @@ def mnorm(x):
 
 
 def msize(x):
-    return int(x * 40.0)
+    return int(1 + x * 20.0)
 
 
 def shufflefn(xs, ys):
@@ -388,7 +388,7 @@ def loss(xs, ys, result):
     gp = result[:, 2:5, :, :]
     gv = result[:, 5:8, :, :]
 
-    #loss_nll = nll_gaussian(result, ys, 5e-5)
+    loss_nll = nll_gaussian(result, ys, 5e-5)
 
     pe = mse(gp, ps)
     ve = mse(gv, vs)
@@ -402,6 +402,7 @@ def loss(xs, ys, result):
     print('mer:', th.mean(th.sqrt(me).data))
     print('her:', th.mean(th.sqrt(he).data))
     print('ttl:', th.mean(th.sqrt(pe + ve + he + me / 500).data))
+    print('lss:', th.mean(loss_nll.data))
     print('-----------------------------')
     sys.stdout.flush()
     lasttime = time.time()
@@ -443,7 +444,8 @@ def loss(xs, ys, result):
         plt.savefig('data/pred.png')
         plt.close()
 
-    return th.sum(pe + ve + me / 50 + he)
+    #return th.sum(pe + ve + me / 50 + he)
+    return loss_nll
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH * REPEAT)
