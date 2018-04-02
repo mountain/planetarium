@@ -60,7 +60,7 @@ lasttime = time.time()
 
 
 def mnorm(x):
-    return -np.log(1.00000000001 - 1 / (2 + np.tanh(np.log(x))))
+    return 1 / (1 - np.log(1.00000000001 - 1 / (2 + np.tanh(np.log(x)))))
 
 
 def msize(x):
