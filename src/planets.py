@@ -406,10 +406,10 @@ def loss(xs, ys, result):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=imass[1] * 3000)
-        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=imass[2] * 3000)
-        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=imass[3] * 3000)
-        ax.plot(input[0, :, 4], input[1, :, 4], input[2, :, 4], 'o', markersize=imass[4] * 3000)
+        ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=imass[1] * 50)
+        ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=imass[2] * 50)
+        ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=imass[3] * 50)
+        ax.plot(input[0, :, 4], input[1, :, 4], input[2, :, 4], 'o', markersize=imass[4] * 50)
         plt.savefig('data/obsv.png')
         plt.close()
 
