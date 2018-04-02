@@ -60,11 +60,11 @@ lasttime = time.time()
 
 
 def mnorm(x):
-    return 1 / (2 + np.tanh(np.log(x)))
+    return -np.log(1.00000000001 - 1 / (2 + np.tanh(np.log(x))))
 
 
 def msize(x):
-    return int(-np.log(1.00000000001 - x) / 3.0)
+    return int(x * 6.0)
 
 
 def shufflefn(xs, ys):
