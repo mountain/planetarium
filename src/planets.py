@@ -44,9 +44,9 @@ MSCALE = 500.0
 
 BATCH = 5
 REPEAT = 3
-SIZE = 21
-WINDOW = 7
-INPUT = 4
+SIZE = 18
+WINDOW = 6
+INPUT = 5
 OUTPUT = 2
 
 lr = 1e-5
@@ -121,8 +121,7 @@ def generator(n, m, yrs, btch):
 
     global mass, sun
 
-    pv = n + 1
-    sz = n + m + 1
+    sz = n + m
     mass = xp.array(xp.random.rand(btch, sz) / MSCALE, dtype=np.float)
     mass[:, 0] = np.ones([btch])
 
@@ -151,16 +150,16 @@ def generator(n, m, yrs, btch):
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
-            inputm = mass[:, 1:n+1].reshape([btch, n, 1]) * MSCALE
-            inputp = rtp[:, 1:pv].reshape([btch, n, 3])
-            inputv = rtv[:, 1:pv].reshape([btch, n, 3])
-            inputdh = dh[:, 1:pv].reshape([btch, n, 1]) / au.G * MSCALE * SCALE
+            inputm = mass[:, 0:n].reshape([btch, n, 1]) * MSCALE
+            inputp = rtp[:, 0:n].reshape([btch, n, 3])
+            inputv = rtv[:, 0:n].reshape([btch, n, 3])
+            inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * MSCALE * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
-            outputm = mass[:, n+1:].reshape([btch, m, 1]) * MSCALE
-            outputp = rtp[:, pv:].reshape([btch, m, 3])
-            outputv = rtv[:, pv:].reshape([btch, m, 3])
-            outputdh = dh[:, pv:].reshape([btch, m, 1]) / au.G * MSCALE * SCALE
+            outputm = mass[:, n:].reshape([btch, m, 1]) * MSCALE
+            outputp = rtp[:, n:].reshape([btch, m, 3])
+            outputv = rtv[:, n:].reshape([btch, m, 3])
+            outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * MSCALE * SCALE
             output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
             yield year, input, output
             lasth = ht
