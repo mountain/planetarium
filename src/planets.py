@@ -173,17 +173,17 @@ def generator(n, m, yrs, btch):
             yield year, input, output
             lasth = ht
 
-            print('-----------------------------')
-            print('im:', np.max(inputm), np.min(inputm))
-            print('ip:', np.max(inputp), np.min(inputp))
-            print('iv:', np.max(inputv), np.min(inputv))
-            print('ih:', np.max(inputdh), np.min(inputdh))
-            print('om:', np.max(outputm), np.min(outputm))
-            print('op:', np.max(outputp), np.min(outputp))
-            print('ov:', np.max(outputv), np.min(outputv))
-            print('oh:', np.max(outputdh), np.min(outputdh))
-            print('-----------------------------')
-            sys.stdout.flush()
+            #print('-----------------------------')
+            #print('im:', np.max(inputm), np.min(inputm))
+            #print('ip:', np.max(inputp), np.min(inputp))
+            #print('iv:', np.max(inputv), np.min(inputv))
+            #print('ih:', np.max(inputdh), np.min(inputdh))
+            #print('om:', np.max(outputm), np.min(outputm))
+            #print('op:', np.max(outputp), np.min(outputp))
+            #print('ov:', np.max(outputv), np.min(outputv))
+            #print('oh:', np.max(outputdh), np.min(outputdh))
+            #print('-----------------------------')
+            #sys.stdout.flush()
 
     print('gen:', time.time() - lasttime)
     sys.stdout.flush()
