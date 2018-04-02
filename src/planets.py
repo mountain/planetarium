@@ -221,8 +221,8 @@ class Evolve(nn.Module):
         self.rel_rec = Variable(cast(np.array(encode_onehot(np.where(off_diag)[1]), dtype=np.float32)))
         self.rel_send = Variable(cast(np.array(encode_onehot(np.where(off_diag)[0]), dtype=np.float32)))
 
-        self.encoder = MLPEncoder(d, 2048, 1)
-        self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
+        self.encoder = MLPEncoder(d, 2048, n * n)
+        self.decoder = MLPDecoder(c, n * n, 2048, 2048, 2048)
 
     def forward(self, x):
         out = x.permute(0, 3, 2, 1).contiguous()
