@@ -153,7 +153,7 @@ def generator(n, m, yrs, btch):
             inputm = mass[:, 0:n].reshape([btch, n, 1])
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
             inputv = rtv[:, 0:n].reshape([btch, n, 3])
-            inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * MSCALE * SCALE
+            inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
             outputm = mass[:, n:].reshape([btch, m, 1])
