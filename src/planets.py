@@ -302,14 +302,13 @@ class Model(nn.Module):
             state = self.evolve(state)
             input = state[:, :, :, :INPUT]
             target = state[:, :, :, INPUT:]
+            ratio = self.ratio(state)
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
-                ratio = self.ratio(state)
                 update = ratio * target + (1 - ratio) * guess
             else:
-                guess = self.guess(input)
-                ratio = self.ratio(state)
+                guess = self.guess(input.contiguous())
                 update = ratio * target + (1 - ratio) * guess
 
             result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
