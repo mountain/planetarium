@@ -214,7 +214,6 @@ class Evolve(nn.Module):
         w = WINDOW
         c = 8
         d = c * w
-        self.w = w
 
         off_diag = np.ones([n, n]) - np.eye(n)
         self.rel_rec = Variable(cast(np.array(encode_onehot(np.where(off_diag)[1]), dtype=np.float32)))
@@ -223,13 +222,13 @@ class Evolve(nn.Module):
         self.encoder = MLPEncoder(d, 2048, 1)
         self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
-    def forward(self, x):
+    def forward(self, x, w=WINDOW):
         out = x.permute(0, 3, 2, 1).contiguous()
 
         logits = self.encoder(out, self.rel_rec, self.rel_send)
         edges = gumbel_softmax(logits)
         self.prob = my_softmax(logits, -1)
-        out = self.decoder(out, edges, self.rel_rec, self.rel_send, self.w)
+        out = self.decoder(out, edges, self.rel_rec, self.rel_send, w)
         out = out.permute(0, 3, 2, 1).contiguous()
 
         print('evolve:', th.max(out.data), th.min(out.data))
@@ -309,7 +308,9 @@ class Model(nn.Module):
                 ratio = self.ratio(state)
                 update = ratio * target + (1 - ratio) * guess
             else:
-                update = target
+                guess = self.guess(input)
+                ratio = self.ratio(state)
+                update = ratio * target + (1 - ratio) * guess
 
             result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
             state = th.cat((input, update), dim=3)
@@ -415,10 +416,10 @@ def loss(xs, ys, result):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=tmass[0] * 3000)
-        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=tmass[1] * 3000)
-        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 3000)
-        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 3000)
+        ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=tmass[0] * 50)
+        ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=tmass[1] * 50)
+        ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=gmass[0] * 50)
+        ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=gmass[1] * 50)
         plt.savefig('data/pred.png')
         plt.close()
 
