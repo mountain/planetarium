@@ -32,6 +32,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from flare.learner import StandardLearner, cast
 from flare.nn.lstm import ConvLSTM, StackedConvLSTM
+from flare.nn.nri import MLPEncoder, MLPDecoder, get_tril_offdiag_indices, get_triu_offdiag_indices
+from flare.nn.nri import gumbel_softmax, my_softmax, encode_onehot, nll_gaussian
 from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, rebatch
 
 
@@ -42,8 +44,8 @@ MSCALE = 500.0
 
 BATCH = 5
 REPEAT = 12
-SIZE = 18
-WINDOW = 6
+SIZE = 14
+WINDOW = 7
 INPUT = 4
 OUTPUT = 2
 
@@ -207,41 +209,34 @@ class Guess(nn.Module):
 
 
 class Evolve(nn.Module):
-    def __init__(self, basedim=1):
+    def __init__(self):
         super(Evolve, self).__init__()
-        self.basedim = basedim
-        r = np.random.rand(basedim, basedim)
-        self.r = Variable(cast(r + r.T))
-        self.o0 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.o1 = Variable(cast(np.random.rand(basedim, basedim)))
-        self.b0 = Variable(cast(np.zeros([1])))
-        self.b1 = Variable(cast(np.zeros([1])))
+        n = INPUT + OUTPUT
+        w = WINDOW
+        c = 8
+        d = c * w
+        self.w = w
+
+        off_diag = np.ones([n, n]) - np.eye(n)
+        self.rel_rec = Variable(cast(np.array(encode_onehot(np.where(off_diag)[1]), dtype=np.float32)))
+        self.rel_send = Variable(cast(np.array(encode_onehot(np.where(off_diag)[0]), dtype=np.float32)))
+
+        self.encoder = MLPEncoder(d, 2048, 1)
+        self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
     def forward(self, x):
-        b, c, s, n = x.size()
-        d = c * s * n
-        out = x.view(b, d).contiguous()
+        out = x.permute(0, 3, 2, 1).contiguous()
 
-        base = th.cat([out for _ in range(d)], dim=-1)
-        state = base.view(b, d, d).contiguous()
+        logits = self.encoder(out, self.rel_rec, self.rel_send)
+        edges = gumbel_softmax(logits)
+        self.prob = my_softmax(logits, -1)
+        out = self.decoder(out, edges, self.rel_rec, self.rel_send, self.w)
+        out = out.permute(0, 3, 2, 1).contiguous()
 
-        r = th.cat([self.r.view(1, d, d) for _ in range(b)], dim=0)
-        status = th.bmm(th.bmm(state, r), state)
-
-        o = th.cat([self.o0.view(1, d, d) for _ in range(b)], dim=0)
-        u = th.tanh(th.bmm(th.bmm(status, o), status) + self.b0)
-        o = th.cat([self.o1.view(1, d, d) for _ in range(b)], dim=0)
-        v = th.reciprocal(th.tanh(th.bmm(th.bmm(status, o), status)) + self.b1)
-
-        result = th.sum(u * v, dim=-1).view(b, c, s, n)
-
-        print('relatn:', th.max(self.r.data), th.min(self.r.data))
-        print('opertn:', th.max(self.o0.data), th.min(self.o0.data))
-        print('opertn:', th.max(self.o1.data), th.min(self.o1.data))
-        print('evolve:', th.max(result.data), th.min(result.data))
+        print('evolve:', th.max(out.data), th.min(out.data))
         sys.stdout.flush()
 
-        return result
+        return out
 
 
 class Ratio(nn.Module):
@@ -281,7 +276,7 @@ class Model(nn.Module):
         self.basedim = 8 * WINDOW * (INPUT + OUTPUT)
 
         self.guess = Guess()
-        self.evolve = Evolve(self.basedim)
+        self.evolve = Evolve()
         self.ratio = Ratio()
 
     def batch_size_changed(self, new_val, orig_val):
@@ -341,8 +336,15 @@ def predict(xs):
 
 counter = 0
 
+triu_indices = get_triu_offdiag_indices(8 * WINDOW * (INPUT + OUTPUT))
+tril_indices = get_tril_offdiag_indices(8 * WINDOW * (INPUT + OUTPUT))
+if th.cuda.is_available():
+    triu_indices = triu_indices.cuda()
+    tril_indices = tril_indices.cuda()
+
 
 def loss(xs, ys, result):
+
     global counter, lasttime
     counter = counter + 1
 
@@ -365,6 +367,8 @@ def loss(xs, ys, result):
     gh = result[:, 1:2, :, :]
     gp = result[:, 2:5, :, :]
     gv = result[:, 5:8, :, :]
+
+    loss_nll = nll_gaussian(result, ys, 5e-5)
 
     pe = mse(gp, ps)
     ve = mse(gv, vs)
@@ -419,10 +423,11 @@ def loss(xs, ys, result):
         plt.savefig('data/pred.png')
         plt.close()
 
-    return th.mean(pe + ve + he + me / 50)
+    return loss_nll
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH * REPEAT)
+
 
 if __name__ == '__main__':
     for epoch in range(10000):
