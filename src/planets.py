@@ -317,18 +317,17 @@ class Model(nn.Module):
             print('idx:', i)
             sys.stdout.flush()
 
-            state = self.evolve(state)
-            update = state[:, :, :, INPUT:]
+            statenx = self.evolve(state)
+            initnx = x[:, :, i:WINDOW + i, :]
             if i < SIZE - WINDOW:
-                init = x[:, :, i:WINDOW+i, :]
-                guess = self.guess(init.contiguous())
+                guessnx = self.guess(initnx.contiguous())
             else:
-                input = state[:, :, :, :INPUT]
-                guess = self.guess(input.contiguous())
-            state = self.remix(th.cat([state, guess], dim=-1))
-            update = (state[:, :, :, INPUT:] + update) / 2
+                input = statenx[:, :, :, :INPUT]
+                guessnx = self.guess(input.contiguous())
 
-            result[:, :, i::SIZE, :] = update[:, :, 0::WINDOW, :]
+            state = self.remix(th.cat([state, initnx, guessnx], dim=-1))
+
+            result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
         return result
 
