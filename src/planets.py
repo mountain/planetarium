@@ -178,11 +178,11 @@ def generator(n, m, yrs, btch):
             lasth = ht
 
             #print('-----------------------------')
-            print('im:', np.max(inputm), np.min(inputm))
+            #print('im:', np.max(inputm), np.min(inputm))
             #print('ip:', np.max(inputp), np.min(inputp))
             #print('iv:', np.max(inputv), np.min(inputv))
             #print('ih:', np.max(inputdh), np.min(inputdh))
-            print('om:', np.max(outputm), np.min(outputm))
+            #print('om:', np.max(outputm), np.min(outputm))
             #print('op:', np.max(outputp), np.min(outputp))
             #print('ov:', np.max(outputv), np.min(outputv))
             #print('oh:', np.max(outputdh), np.min(outputdh))
