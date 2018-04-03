@@ -261,13 +261,12 @@ class Evolve(nn.Module):
         return out
 
 
-class Ratio(nn.Module):
+class Remix(nn.Module):
     def __init__(self):
-        super(Ratio, self).__init__()
+        super(Remix, self).__init__()
 
-        self.normal = nn.BatchNorm1d(4 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(4 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 4 * OUTPUT)
+        self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT)
+        self.lstm = ConvLSTM(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT, 2048, 4 * WINDOW * OUTPUT, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -285,7 +284,7 @@ class Ratio(nn.Module):
         out = out.view(out.size(0), 4, 1, OUTPUT)
         out = F.sigmoid(out)
 
-        print('ratio:', th.max(out.data), th.min(out.data))
+        print('remix:', th.max(out.data), th.min(out.data))
         sys.stdout.flush()
 
         return out
@@ -299,12 +298,12 @@ class Model(nn.Module):
 
         self.guess = Guess()
         self.evolve = Evolve()
-        self.ratio = Ratio()
+        self.remix = Remix()
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
         self.guess.batch_size_changed(new_val, orig_val)
-        self.ratio.batch_size_changed(new_val, orig_val)
+        self.remix.batch_size_changed(new_val, orig_val)
 
     def forward(self, x):
         x = x.permute(0, 2, 4, 1, 3).contiguous()
@@ -324,19 +323,15 @@ class Model(nn.Module):
             sys.stdout.flush()
 
             state = self.evolve(state)
-            input = state[:, :, :, :INPUT]
-            target = state[:, :, :, INPUT:]
-            ratio = self.ratio(state)
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
-                update = ratio * target + (1 - ratio) * guess
             else:
+                input = state[:, :, :, :INPUT]
                 guess = self.guess(input.contiguous())
-                update = ratio * target + (1 - ratio) * guess
+            state = self.remix(th.cat([state, guess], dim=1))
 
-            result[:, :, i::SIZE, :] = update[:, :, 0::SIZE, :]
-            state = th.cat((input, update), dim=3)
+            result[:, :, i::SIZE, :] = state[:, :, 0::SIZE, :]
 
         return result
 
