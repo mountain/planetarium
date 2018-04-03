@@ -325,7 +325,7 @@ class Model(nn.Module):
                 input = statenx[:, :, :, :INPUT]
                 guessnx = self.guess(input.contiguous())
 
-            state = self.remix(th.cat([state, initnx, guessnx], dim=-1))
+            state = self.remix(th.cat([statenx, initnx, guessnx], dim=3))
 
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
