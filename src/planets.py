@@ -47,7 +47,7 @@ BATCH = 5
 REPEAT = 3
 SIZE = 32
 WINDOW = 8
-INPUT = 4
+INPUT = 5
 OUTPUT = 2
 
 lr = 1e-5
@@ -318,6 +318,7 @@ class Model(nn.Module):
             sys.stdout.flush()
 
             state = self.evolve(state)
+            update = state[:, :, :, INPUT:]
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
@@ -325,8 +326,9 @@ class Model(nn.Module):
                 input = state[:, :, :, :INPUT]
                 guess = self.guess(input.contiguous())
             state = self.remix(th.cat([state, guess], dim=-1))
+            update = (state[:, :, :, INPUT:] + update) / 2
 
-            result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
+            result[:, :, i::SIZE, :] = update[:, :, 0::WINDOW, :]
 
         return result
 
