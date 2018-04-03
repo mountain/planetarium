@@ -83,9 +83,8 @@ def shufflefn(xs, ys):
     ys = ys[:, :, :, perm, :]
 
     # permute on different space dims
-    seg = np.arange(2, 5, 1)
+    seg = np.arange(1, 4, 1)
     np.random.shuffle(seg)
-    seg = np.concatenate([seg, seg + 3])
     perm = np.concatenate((np.array([0]), seg))
 
     xs = xs[:, :, :, :, perm]
