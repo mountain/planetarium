@@ -33,7 +33,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from flare.learner import StandardLearner, cast
 from flare.nn.lstm import ConvLSTM, StackedConvLSTM
 from flare.nn.nri import MLPEncoder, MLPDecoder, get_tril_offdiag_indices, get_triu_offdiag_indices
-from flare.nn.nri import gumbel_softmax, my_softmax, encode_onehot, nll_gaussian
+from flare.nn.nri import gumbel_softmax, my_softmax, encode_onehot, nll_gaussian, kl_categorical_uniform
 from flare.dataset.decorators import attributes, segment, divid, sequential, shuffle, data, rebatch
 
 
@@ -393,6 +393,7 @@ def loss(xs, ys, result):
     gv = result[:, 5:8, :, :]
 
     loss_nll = nll_gaussian(result, ys, 5e-5)
+    loss_kl = kl_categorical_uniform(model.prob, INPUT + OUTPUT, 1)
 
     pe = mse(gp, ps)
     ve = mse(gv, vs)
@@ -407,6 +408,7 @@ def loss(xs, ys, result):
     print('her:', th.mean(th.sqrt(he).data))
     print('ttl:', th.mean(th.sqrt(pe + ve + he + me / 500).data))
     print('lss:', th.mean(loss_nll.data))
+    print('lkl:', th.mean(loss_kl.data))
     print('-----------------------------')
     sys.stdout.flush()
     lasttime = time.time()
@@ -449,7 +451,7 @@ def loss(xs, ys, result):
         plt.close()
 
     #return th.sum(pe + ve + me / 50 + he)
-    return loss_nll
+    return loss_nll + loss_kl
 
 
 learner = StandardLearner(model, predict, loss, optimizer, batch=BATCH * REPEAT)
