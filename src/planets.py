@@ -43,10 +43,10 @@ SCALE = 120.0
 MSCALE = 500.0
 VSCALE = 10000.0
 
-BATCH = 3
+BATCH = 5
 REPEAT = 3
-SIZE = 24
-WINDOW = 8
+SIZE = 36
+WINDOW = 12
 INPUT = 5
 OUTPUT = 2
 
@@ -157,25 +157,27 @@ def generator(n, m, yrs, btch):
         if year != lastyear:
             lastyear = year
             rtp = x / SCALE
-            rtv = v / SCALE
-            ht = h(x, v)
-            dh = ht - lasth
+            #rtv = v / SCALE
+            #ht = h(x, v)
+            #dh = ht - lasth
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
             inputm = mnorm(mass[:, 0:n].reshape([btch, n, 1]))
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
-            inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
-            inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
-            input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
+            #inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
+            #inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
+            #input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
+            input = np.concatenate([inputm, inputp], axis=2).reshape([btch, n * 4])
 
             outputm = mnorm(mass[:, n:].reshape([btch, m, 1]))
             outputp = rtp[:, n:].reshape([btch, m, 3])
-            outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
-            outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
-            output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
+            #outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
+            #outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
+            #output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
+            output = np.concatenate([outputm, outputp], axis=2).reshape([btch, m * 4])
             yield year, input, output
-            lasth = ht
+            #lasth = ht
 
             #print('-----------------------------')
             #print('im:', np.max(inputm), np.min(inputm))
@@ -206,11 +208,11 @@ def dataset():
 
 
 class Guess(nn.Module):
-    def __init__(self, num_classes=8 * WINDOW * OUTPUT):
+    def __init__(self, num_classes=4 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.normal = nn.BatchNorm1d(8 * WINDOW * INPUT)
-        self.lstm = StackedConvLSTM(1, 8 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
+        self.lstm = StackedConvLSTM(1, 4 * WINDOW * INPUT, 2048, 1024, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(1024, num_classes, bias=False)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -226,7 +228,7 @@ class Guess(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, WINDOW, OUTPUT)
+        out = out.view(out.size(0), 4, WINDOW, OUTPUT)
         print('guess:', th.max(out.data), th.min(out.data))
         sys.stdout.flush()
         return out
@@ -237,15 +239,15 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
         n = INPUT + OUTPUT
         w = WINDOW
-        c = 8
+        c = 4
         d = c * w
 
         off_diag = np.ones([n, n]) - np.eye(n)
         self.rel_rec = Variable(cast(np.array(encode_onehot(np.where(off_diag)[1]), dtype=np.float32)))
         self.rel_send = Variable(cast(np.array(encode_onehot(np.where(off_diag)[0]), dtype=np.float32)))
 
-        self.encoder = MLPEncoder(d, 2048, 2)
-        self.decoder = MLPDecoder(c, 2, 2048, 2048, 2048)
+        self.encoder = MLPEncoder(d, 2048, 1)
+        self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
     def forward(self, x, w=WINDOW):
         out = x.permute(0, 3, 2, 1).contiguous()
@@ -267,9 +269,9 @@ class Ratio(nn.Module):
     def __init__(self):
         super(Ratio, self).__init__()
 
-        self.normal = nn.BatchNorm1d(8 * WINDOW * (INPUT + OUTPUT))
-        self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 8 * OUTPUT)
+        self.normal = nn.BatchNorm1d(4 * WINDOW * (INPUT + OUTPUT))
+        self.lstm = ConvLSTM(4 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.linear = nn.Linear(2048, 4 * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -284,7 +286,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, 1, OUTPUT)
+        out = out.view(out.size(0), 4, 1, OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -297,7 +299,7 @@ class Model(nn.Module):
     def __init__(self, bsize=1):
         super(Model, self).__init__()
         self.batch = bsize
-        self.basedim = 8 * WINDOW * (INPUT + OUTPUT)
+        self.basedim = 4 * WINDOW * (INPUT + OUTPUT)
 
         self.guess = Guess()
         self.evolve = Evolve()
@@ -313,7 +315,7 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         x = x.view(sr * sb, sc, ss, si)
 
-        result = Variable(cast(np.zeros([sr * sb, 8, SIZE, OUTPUT])))
+        result = Variable(cast(np.zeros([sr * sb, 4, SIZE, OUTPUT])))
 
         init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init.contiguous())
@@ -361,8 +363,8 @@ def predict(xs):
 
 counter = 0
 
-triu_indices = get_triu_offdiag_indices(8 * WINDOW * (INPUT + OUTPUT))
-tril_indices = get_tril_offdiag_indices(8 * WINDOW * (INPUT + OUTPUT))
+triu_indices = get_triu_offdiag_indices(4 * WINDOW * (INPUT + OUTPUT))
+tril_indices = get_tril_offdiag_indices(4 * WINDOW * (INPUT + OUTPUT))
 if th.cuda.is_available():
     triu_indices = triu_indices.cuda()
     tril_indices = tril_indices.cuda()
@@ -384,30 +386,30 @@ def loss(xs, ys, result):
     im = xs[:, 0:1, :, :]
 
     ms = ys[:, 0:1, :, :]
-    hs = ys[:, 1:2, :, :]
-    ps = ys[:, 2:5, :, :]
-    vs = ys[:, 5:8, :, :]
+    #hs = ys[:, 1:2, :, :]
+    ps = ys[:, 1:4, :, :]
+    #vs = ys[:, 5:8, :, :]
 
     gm = result[:, 0:1, :, :]
-    gh = result[:, 1:2, :, :]
-    gp = result[:, 2:5, :, :]
-    gv = result[:, 5:8, :, :]
+    #gh = result[:, 1:2, :, :]
+    gp = result[:, 1:4, :, :]
+    #gv = result[:, 5:8, :, :]
 
     loss_nll = nll_gaussian(result, ys, 5e-5, add_const=True)
     loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 2, add_const=True)
 
     pe = mse(gp, ps)
-    ve = mse(gv, vs)
+    #ve = mse(gv, vs)
     me = mse(gm, ms)
-    he = mse(gh, hs)
+    #he = mse(gh, hs)
 
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
     print('per:', th.mean(th.sqrt(pe).data))
-    print('ver:', th.mean(th.sqrt(ve).data))
+    #print('ver:', th.mean(th.sqrt(ve).data))
     print('mer:', th.mean(th.sqrt(me).data))
-    print('her:', th.mean(th.sqrt(he).data))
-    print('ttl:', th.mean(th.sqrt(pe + ve + he + me / 500).data))
+    #print('her:', th.mean(th.sqrt(he).data))
+    print('ttl:', th.mean(th.sqrt(pe + me / 500).data))
     print('lss:', th.mean(loss_nll.data))
     print('lkl:', th.mean(loss_kl.data))
     print('-----------------------------')
@@ -419,14 +421,14 @@ def loss(xs, ys, result):
 
     if counter % 1 == 0:
         if th.cuda.is_available():
-            input = xs.data.cpu().numpy()[0, 2:5, :, :]
+            input = xs.data.cpu().numpy()[0, 1:4, :, :]
             truth = ps.data.cpu().numpy()[0, :, :, :]
             guess = result.data.cpu().numpy()[0, :, :, :]
             imass = im[0, 0, 0, :].data.cpu().numpy()
             gmass = gm[0, 0, 0, :].data.cpu().numpy()
             tmass = ms[0, 0, 0, :].data.cpu().numpy()
         else:
-            input = xs.data.numpy()[0, 2:5, :, :]
+            input = xs.data.numpy()[0, 1:4, :, :]
             truth = ps.data.numpy()[0, :, :, :]
             guess = result.data.numpy()[0, :, :, :]
             imass = im[0, 0, 0, :].data.numpy()
