@@ -393,7 +393,7 @@ def loss(xs, ys, result):
     gv = result[:, 5:8, :, :]
 
     loss_nll = nll_gaussian(result, ys, 5e-5)
-    loss_kl = kl_categorical_uniform(model.prob, INPUT + OUTPUT, 1)
+    loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 1)
 
     pe = mse(gp, ps)
     ve = mse(gv, vs)
