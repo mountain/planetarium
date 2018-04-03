@@ -266,7 +266,7 @@ class Remix(nn.Module):
         super(Remix, self).__init__()
 
         self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT)
-        self.lstm = ConvLSTM(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT, 2048, 4 * WINDOW * OUTPUT, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = ConvLSTM(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT, 4 * WINDOW * OUTPUT, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
