@@ -244,8 +244,8 @@ class Evolve(nn.Module):
         self.rel_rec = Variable(cast(np.array(encode_onehot(np.where(off_diag)[1]), dtype=np.float32)))
         self.rel_send = Variable(cast(np.array(encode_onehot(np.where(off_diag)[0]), dtype=np.float32)))
 
-        self.encoder = MLPEncoder(d, 2048, 1)
-        self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
+        self.encoder = MLPEncoder(d, 2048, 2)
+        self.decoder = MLPDecoder(c, 2, 2048, 2048, 2048)
 
     def forward(self, x, w=WINDOW):
         out = x.permute(0, 3, 2, 1).contiguous()
@@ -256,6 +256,7 @@ class Evolve(nn.Module):
         out = self.decoder(out, edges, self.rel_rec, self.rel_send, w)
         out = out.permute(0, 3, 2, 1).contiguous()
 
+        print('problt:', th.max(self.prob.data), th.min(self.prob.data))
         print('evolve:', th.max(out.data), th.min(out.data))
         sys.stdout.flush()
 
@@ -392,8 +393,8 @@ def loss(xs, ys, result):
     gp = result[:, 2:5, :, :]
     gv = result[:, 5:8, :, :]
 
-    loss_nll = nll_gaussian(result, ys, 5e-5)
-    loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 1)
+    loss_nll = nll_gaussian(result, ys, 5e-5, add_const=True)
+    loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 2, add_const=True)
 
     pe = mse(gp, ps)
     ve = mse(gv, vs)
