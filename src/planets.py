@@ -47,7 +47,7 @@ BATCH = 5
 REPEAT = 3
 SIZE = 32
 WINDOW = 8
-INPUT = 5
+INPUT = 4
 OUTPUT = 2
 
 lr = 1e-5
@@ -210,7 +210,7 @@ class Guess(nn.Module):
     def __init__(self, num_classes=4 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT)
+        self.normal = nn.BatchNorm2d(4)
         self.lstm = StackedConvLSTM(2, 4 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
@@ -220,8 +220,7 @@ class Guess(nn.Module):
         self.lstm.reset()
 
     def forward(self, x):
-        out = x.view(x.size(0), -1).contiguous()
-        out = self.normal(out)
+        out = self.normal(x)
         out = out.view(out.size(0), -1, 1, 1)
         out = self.lstm(out)
         out = out.view(out.size(0), 4, WINDOW, OUTPUT)
@@ -265,8 +264,8 @@ class Remix(nn.Module):
     def __init__(self):
         super(Remix, self).__init__()
 
-        self.normal = nn.BatchNorm1d(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT)
-        self.lstm = ConvLSTM(4 * WINDOW * INPUT + 8 * WINDOW * OUTPUT, 4 * WINDOW * OUTPUT, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.normal = nn.BatchNorm2d(4)
+        self.lstm = ConvLSTM(4 * WINDOW * (INPUT + 2 * OUTPUT), 4 * WINDOW * (INPUT + OUTPUT), 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -275,14 +274,10 @@ class Remix(nn.Module):
         self.lstm.reset()
 
     def forward(self, x):
-        out = x.view(x.size(0), -1)
-        out = self.normal(out)
+        out = self.normal(x)
         out = out.view(out.size(0), -1, 1, 1)
         out = self.lstm(out)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        out = out.view(out.size(0), 4, 1, OUTPUT)
-        out = F.sigmoid(out)
+        out = out.view(out.size(0), 4, WINDOW, INPUT + OUTPUT)
 
         print('remix:', th.max(out.data), th.min(out.data))
         sys.stdout.flush()
@@ -329,7 +324,7 @@ class Model(nn.Module):
             else:
                 input = state[:, :, :, :INPUT]
                 guess = self.guess(input.contiguous())
-            state = self.remix(th.cat([state, guess], dim=1))
+            state = self.remix(th.cat([state, guess], dim=-1))
 
             result[:, :, i::SIZE, :] = state[:, :, 0::SIZE, :]
 
