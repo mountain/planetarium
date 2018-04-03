@@ -318,14 +318,14 @@ class Model(nn.Module):
             sys.stdout.flush()
 
             statenx = self.evolve(state)
-            initnx = x[:, :, i:WINDOW + i, :]
             if i < SIZE - WINDOW:
+                initnx = x[:, :, i:WINDOW + i, :]
                 guessnx = self.guess(initnx.contiguous())
+                state = self.remix(th.cat([statenx, initnx, guessnx], dim=3))
             else:
                 input = statenx[:, :, :, :INPUT]
                 guessnx = self.guess(input.contiguous())
-
-            state = self.remix(th.cat([statenx, initnx, guessnx], dim=3))
+                state = self.remix(th.cat([statenx, input, guessnx], dim=3))
 
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
