@@ -59,12 +59,16 @@ sun = None
 lasttime = time.time()
 
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
 def mnorm(x):
-    return 1 / (1 - np.log(1.00000000001 - 1 / (2 + np.tanh(np.log(x)))))
+    return 2 * sigmoid(6 / (1 - np.log(x))) - 1
 
 
 def msize(x):
-    return int(1 + x * 20.0)
+    return int(1 + x * 10.0)
 
 
 def shufflefn(xs, ys):
@@ -174,11 +178,11 @@ def generator(n, m, yrs, btch):
             lasth = ht
 
             #print('-----------------------------')
-            #print('im:', np.max(inputm), np.min(inputm))
+            print('im:', np.max(inputm), np.min(inputm))
             #print('ip:', np.max(inputp), np.min(inputp))
             #print('iv:', np.max(inputv), np.min(inputv))
             #print('ih:', np.max(inputdh), np.min(inputdh))
-            #print('om:', np.max(outputm), np.min(outputm))
+            print('om:', np.max(outputm), np.min(outputm))
             #print('op:', np.max(outputp), np.min(outputp))
             #print('ov:', np.max(outputv), np.min(outputv))
             #print('oh:', np.max(outputdh), np.min(outputdh))
