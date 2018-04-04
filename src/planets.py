@@ -211,7 +211,7 @@ class Guess(nn.Module):
     def __init__(self, num_classes=4 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.lstm = StackedConvLSTM(2, 4 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 4 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
