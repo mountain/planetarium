@@ -245,7 +245,7 @@ class Evolve(nn.Module):
         self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
     def forward(self, x, w=WINDOW):
-        mo = x[:, :1, :, :]
+        #mo = x[:, :1, :, :]
         out = x.permute(0, 3, 2, 1).contiguous()
 
         logits = self.encoder(out, self.rel_rec, self.rel_send)
@@ -254,8 +254,8 @@ class Evolve(nn.Module):
         out = self.decoder(out, edges, self.rel_rec, self.rel_send, w)
         out = out.permute(0, 3, 2, 1).contiguous()
 
-        pn = out[:, 1:, :, :]
-        out = th.cat([mo, pn], dim=1)
+        #pn = out[:, 1:, :, :]
+        #out = th.cat([mo, pn], dim=1)
 
         print('evolvm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
         print('evolvx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
@@ -269,7 +269,7 @@ class Ratio(nn.Module):
         super(Ratio, self).__init__()
 
         self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 4 * (INPUT + OUTPUT))
+        self.linear = nn.Linear(2048, 4 * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -282,7 +282,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 4, 1, INPUT + OUTPUT)
+        out = out.view(out.size(0), 4, 1, OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -324,19 +324,21 @@ class Model(nn.Module):
             sys.stdout.flush()
 
             statenx = self.evolve(state)
+            state = statenx
+
             if i < SIZE - WINDOW:
                 initnx = x[:, :, i:WINDOW + i, :]
                 guessnx = self.guess(initnx.contiguous())
-                target = th.cat([initnx, guessnx], dim=3)
+                guessnx = th.cat([initnx, guessnx], dim=3)
             else:
                 input = statenx[:, :, :, :INPUT]
                 guessnx = self.guess(input.contiguous())
-                target = th.cat([input, guessnx], dim=3)
+                guessnx = th.cat([input, guessnx], dim=3)
 
-            ratio = self.ratio(th.cat([statenx, target], dim=3))
-            state = ratio * statenx + (1 - ratio) * target
+            ratio = self.ratio(th.cat([statenx, guessnx], dim=3))
+            update = ratio * statenx[:, :, 0::WINDOW, INPUT:] + (1 - ratio) * guessnx[:, :, 0::WINDOW, INPUT:]
 
-            result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
+            result[:, :, i::SIZE, :] = update
 
         return result
 
