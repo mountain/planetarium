@@ -254,13 +254,14 @@ class Evolve(nn.Module):
         out = self.decoder(out, edges, self.rel_rec, self.rel_send, w)
         out = out.permute(0, 3, 2, 1).contiguous()
 
+        pn = out[:, 1:, :, :]
+        out = th.cat([mo, pn], dim=1)
+
         print('evolvm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
         print('evolvx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
         sys.stdout.flush()
 
-        pn = out[:, 1:, :, :]
-
-        return th.cat([mo, pn], dim=1)
+        return out
 
 
 class Remix(nn.Module):
