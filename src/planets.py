@@ -391,8 +391,8 @@ def loss(xs, ys, result):
     gp = result[:, 1:4, :, :]
     #gv = result[:, 5:8, :, :]
 
-    loss_nll = nll_gaussian(result, ys, 5e-5, add_const=True)
-    loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 2, add_const=True)
+    loss_nll = nll_gaussian(result, ys, 5e-5)
+    loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 1)
 
     pe = mse(gp, ps)
     #ve = mse(gv, vs)
