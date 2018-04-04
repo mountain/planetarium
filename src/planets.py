@@ -258,8 +258,7 @@ class Evolve(nn.Module):
         print('evolvx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
         sys.stdout.flush()
 
-        mn = out[:, :1, :, :]
-        pn = out[:, :1, :, :]
+        pn = out[:, 1:, :, :]
 
         return th.cat([mo, pn], dim=1)
 
