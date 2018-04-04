@@ -211,7 +211,7 @@ class Guess(nn.Module):
     def __init__(self, num_classes=4 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.lstm = ConvLSTM(4 * WINDOW * INPUT, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(2, 4 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -264,11 +264,12 @@ class Evolve(nn.Module):
         return out
 
 
-class Remix(nn.Module):
+class Ratio(nn.Module):
     def __init__(self):
-        super(Remix, self).__init__()
+        super(Ratio, self).__init__()
 
-        self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 4 * WINDOW * (INPUT + OUTPUT), 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.linear = nn.Linear(2048, 4 * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -279,10 +280,12 @@ class Remix(nn.Module):
     def forward(self, x):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
-        out = out.view(out.size(0), 4, WINDOW, INPUT + OUTPUT)
+        out = out.view(out.size(0), -1)
+        out = self.linear(out)
+        out = out.view(out.size(0), 4, 1, OUTPUT)
+        out = F.sigmoid(out)
 
-        print('remixm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
-        print('remixx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
+        print('ratio:', th.max(out.data), th.min(out.data))
         sys.stdout.flush()
 
         return out
@@ -296,7 +299,7 @@ class Model(nn.Module):
 
         self.guess = Guess()
         self.evolve = Evolve()
-        self.remix = Remix()
+        self.ratio = Ratio()
 
     def batch_size_changed(self, new_val, orig_val):
         self.batch = new_val
@@ -324,11 +327,14 @@ class Model(nn.Module):
             if i < SIZE - WINDOW:
                 initnx = x[:, :, i:WINDOW + i, :]
                 guessnx = self.guess(initnx.contiguous())
-                state = self.remix(th.cat([statenx, initnx, guessnx], dim=3))
+                target = th.cat([initnx, guessnx], dim=3)
             else:
                 input = statenx[:, :, :, :INPUT]
                 guessnx = self.guess(input.contiguous())
-                state = self.remix(th.cat([statenx, input, guessnx], dim=3))
+                target = th.cat([input, guessnx], dim=3)
+
+            ratio = self.ratio(th.cat([statenx, target], dim=3))
+            state = ratio * state + (1 - ratio) * target
 
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
