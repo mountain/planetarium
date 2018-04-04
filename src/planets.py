@@ -208,7 +208,7 @@ def dataset():
 
 
 class Guess(nn.Module):
-    def __init__(self, num_classes=3 * WINDOW * OUTPUT):
+    def __init__(self, num_classes=4 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
         self.lstm = ConvLSTM(4 * WINDOW * INPUT, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
@@ -220,13 +220,13 @@ class Guess(nn.Module):
         self.lstm.reset()
 
     def forward(self, x):
-        m = x[:, :1, :, :]
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
-        out = out.view(out.size(0), 3, WINDOW, OUTPUT)
+        out = out.view(out.size(0), 4, WINDOW, OUTPUT)
+        print('guessm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
         print('guessx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
         sys.stdout.flush()
-        return th.cat([m, out], dim=1)
+        return out
 
 
 class Evolve(nn.Module):
@@ -245,6 +245,7 @@ class Evolve(nn.Module):
         self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
     def forward(self, x, w=WINDOW):
+        mo = x[:, :1, :, :]
         out = x.permute(0, 3, 2, 1).contiguous()
 
         logits = self.encoder(out, self.rel_rec, self.rel_send)
@@ -257,7 +258,10 @@ class Evolve(nn.Module):
         print('evolvx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
         sys.stdout.flush()
 
-        return out
+        mn = out[:, :1, :, :]
+        pn = out[:, :1, :, :]
+
+        return th.cat([mo, pn], dim=1)
 
 
 class Remix(nn.Module):
