@@ -269,7 +269,7 @@ class Ratio(nn.Module):
         super(Ratio, self).__init__()
 
         self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 4 * OUTPUT)
+        self.linear = nn.Linear(2048, 4 * (INPUT + OUTPUT))
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -282,7 +282,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 4, 1, OUTPUT)
+        out = out.view(out.size(0), 4, 1, INPUT + OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -334,7 +334,7 @@ class Model(nn.Module):
                 target = th.cat([input, guessnx], dim=3)
 
             ratio = self.ratio(th.cat([statenx, target], dim=3))
-            state = ratio * state + (1 - ratio) * target
+            state = ratio * statenx + (1 - ratio) * target
 
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
