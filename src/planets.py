@@ -86,7 +86,7 @@ def shufflefn(xs, ys):
     # permute on different space dims
     seg = np.arange(1, 4, 1)
     np.random.shuffle(seg)
-    perm = np.concatenate((np.array([0]), seg))
+    perm = np.concatenate((np.array([0]), seg, seg + 3))
 
     xs = xs[:, :, :, :, perm]
     ys = ys[:, :, :, :, perm]
@@ -157,7 +157,7 @@ def generator(n, m, yrs, btch):
         if year != lastyear:
             lastyear = year
             rtp = x / SCALE
-            #rtv = v / SCALE
+            rtv = v / SCALE
             #ht = h(x, v)
             #dh = ht - lasth
 
@@ -165,17 +165,17 @@ def generator(n, m, yrs, btch):
 
             inputm = mnorm(mass[:, 0:n].reshape([btch, n, 1]))
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
-            #inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
+            inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
             #inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
             #input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
-            input = np.concatenate([inputm, inputp], axis=2).reshape([btch, n * 4])
+            input = np.concatenate([inputm, inputp, inputv], axis=2).reshape([btch, n * 7])
 
             outputm = mnorm(mass[:, n:].reshape([btch, m, 1]))
             outputp = rtp[:, n:].reshape([btch, m, 3])
-            #outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
+            outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
             #outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
             #output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
-            output = np.concatenate([outputm, outputp], axis=2).reshape([btch, m * 4])
+            output = np.concatenate([outputm, outputp, outputv], axis=2).reshape([btch, m * 7])
             yield year, input, output
             #lasth = ht
 
@@ -199,7 +199,7 @@ def generator(n, m, yrs, btch):
 @rebatch(repeat=REPEAT)
 @shuffle(shufflefn, repeat=REPEAT)
 @data()
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 4], layout_out=[SIZE, BATCH, OUTPUT, 4])
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 7], layout_out=[SIZE, BATCH, OUTPUT, 7])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
@@ -208,10 +208,10 @@ def dataset():
 
 
 class Guess(nn.Module):
-    def __init__(self, num_classes=4 * WINDOW * OUTPUT):
+    def __init__(self, num_classes=7 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.lstm = StackedConvLSTM(3, 4 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 7 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -222,9 +222,10 @@ class Guess(nn.Module):
     def forward(self, x):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
-        out = out.view(out.size(0), 4, WINDOW, OUTPUT)
+        out = out.view(out.size(0), 7, WINDOW, OUTPUT)
         print('guessm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
-        print('guessx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
+        print('guessx:', th.max(out[:, 1:4].data), th.min(out[:, 1:4].data))
+        print('guessv:', th.max(out[:, 4:].data), th.min(out[:, 4:].data))
         sys.stdout.flush()
         return out
 
@@ -234,7 +235,7 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
         n = INPUT + OUTPUT
         w = WINDOW
-        c = 4
+        c = 7
         d = c * w
 
         off_diag = np.ones([n, n]) - np.eye(n)
@@ -258,7 +259,8 @@ class Evolve(nn.Module):
         #out = th.cat([mo, pn], dim=1)
 
         print('evolvm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
-        print('evolvx:', th.max(out[:, 1:].data), th.min(out[:, 1:].data))
+        print('evolvx:', th.max(out[:, 1:4].data), th.min(out[:, 1:4].data))
+        print('evolvv:', th.max(out[:, 4:].data), th.min(out[:, 4:].data))
         sys.stdout.flush()
 
         return out
@@ -268,8 +270,8 @@ class Ratio(nn.Module):
     def __init__(self):
         super(Ratio, self).__init__()
 
-        self.lstm = ConvLSTM(8 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 4 * OUTPUT)
+        self.lstm = ConvLSTM(14 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.linear = nn.Linear(2048, 7 * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -282,7 +284,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 4, 1, OUTPUT)
+        out = out.view(out.size(0), 7, 1, OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -295,7 +297,7 @@ class Model(nn.Module):
     def __init__(self, bsize=1):
         super(Model, self).__init__()
         self.batch = bsize
-        self.basedim = 4 * WINDOW * (INPUT + OUTPUT)
+        self.basedim = 7 * WINDOW * (INPUT + OUTPUT)
 
         self.guess = Guess()
         self.evolve = Evolve()
@@ -311,7 +313,7 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         x = x.view(sr * sb, sc, ss, si)
 
-        result = Variable(cast(np.zeros([sr * sb, 4, SIZE, OUTPUT])))
+        result = Variable(cast(np.zeros([sr * sb, 7, SIZE, OUTPUT])))
 
         init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init.contiguous())
@@ -361,8 +363,8 @@ def predict(xs):
 
 counter = 0
 
-triu_indices = get_triu_offdiag_indices(4 * WINDOW * (INPUT + OUTPUT))
-tril_indices = get_tril_offdiag_indices(4 * WINDOW * (INPUT + OUTPUT))
+triu_indices = get_triu_offdiag_indices(7 * WINDOW * (INPUT + OUTPUT))
+tril_indices = get_tril_offdiag_indices(7 * WINDOW * (INPUT + OUTPUT))
 if th.cuda.is_available():
     triu_indices = triu_indices.cuda()
     tril_indices = tril_indices.cuda()
