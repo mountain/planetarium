@@ -84,9 +84,9 @@ def shufflefn(xs, ys):
     ys = ys[:, :, :, perm, :]
 
     # permute on different space dims
-    seg = np.arange(1, 4, 1)
+    seg = np.arange(2, 5, 1)
     np.random.shuffle(seg)
-    perm = np.concatenate((np.array([0]), seg, seg + 3))
+    perm = np.concatenate((np.array([0, 1]), seg, seg + 3))
 
     xs = xs[:, :, :, :, perm]
     ys = ys[:, :, :, :, perm]
@@ -147,7 +147,8 @@ def generator(n, m, yrs, btch):
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
     h = hamilton.hamiltonian(au, mass)
-    lasth = h(x, v)
+    lastha = h(x, v, limit=sz)
+    lasthl = h(x, v, limit=n)
 
     t = 0
     lastyear = 0
@@ -158,26 +159,27 @@ def generator(n, m, yrs, btch):
             lastyear = year
             rtp = x / SCALE
             rtv = v / SCALE
-            #ht = h(x, v)
-            #dh = ht - lasth
+            ha = h(x, v, limit=sz)
+            hl = h(x, v, limit=n)
+            dha = ha - lastha
+            dhl = hl - lasthl
 
             sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
 
             inputm = mnorm(mass[:, 0:n].reshape([btch, n, 1]))
             inputp = rtp[:, 0:n].reshape([btch, n, 3])
             inputv = rtv[:, 0:n].reshape([btch, n, 3]) * VSCALE
-            #inputdh = dh[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
-            #input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
-            input = np.concatenate([inputm, inputp, inputv], axis=2).reshape([btch, n * 7])
+            inputdh = dhl[:, 0:n].reshape([btch, n, 1]) / au.G * SCALE
+            input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, n * 8])
 
             outputm = mnorm(mass[:, n:].reshape([btch, m, 1]))
             outputp = rtp[:, n:].reshape([btch, m, 3])
             outputv = rtv[:, n:].reshape([btch, m, 3]) * VSCALE
-            #outputdh = dh[:, n:].reshape([btch, m, 1]) / au.G * SCALE
-            #output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
-            output = np.concatenate([outputm, outputp, outputv], axis=2).reshape([btch, m * 7])
+            outputdh = dha[:, n:].reshape([btch, m, 1]) / au.G * SCALE
+            output = np.concatenate([outputm, outputdh, outputp, outputv], axis=2).reshape([btch, m * 8])
             yield year, input, output
-            #lasth = ht
+            lastha = ha
+            lasthl = hl
 
             #print('-----------------------------')
             #print('im:', np.max(inputm), np.min(inputm))
@@ -199,7 +201,7 @@ def generator(n, m, yrs, btch):
 @rebatch(repeat=REPEAT)
 @shuffle(shufflefn, repeat=REPEAT)
 @data()
-@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 7], layout_out=[SIZE, BATCH, OUTPUT, 7])
+@sequential(['ds.x'], ['ds.y'], layout_in=[SIZE, BATCH, INPUT, 8], layout_out=[SIZE, BATCH, OUTPUT, 8])
 @divid(lengths=[SIZE], names=['ds'])
 @segment(segment_size=SIZE)
 @attributes('yr', 'x', 'y')
@@ -208,10 +210,10 @@ def dataset():
 
 
 class Guess(nn.Module):
-    def __init__(self, num_classes=7 * WINDOW * OUTPUT):
+    def __init__(self, num_classes=8 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.lstm = StackedConvLSTM(3, 7 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 8 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -222,10 +224,11 @@ class Guess(nn.Module):
     def forward(self, x):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
-        out = out.view(out.size(0), 7, WINDOW, OUTPUT)
-        print('guessm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
-        print('guessx:', th.max(out[:, 1:4].data), th.min(out[:, 1:4].data))
-        print('guessv:', th.max(out[:, 4:].data), th.min(out[:, 4:].data))
+        out = out.view(out.size(0), 8, WINDOW, OUTPUT)
+        print('guessm:', th.max(out[:, 0:1].data), th.min(out[:, 0:1].data))
+        print('guessh:', th.max(out[:, 1:2].data), th.min(out[:, 1:2].data))
+        print('guessx:', th.max(out[:, 2:5].data), th.min(out[:, 2:5].data))
+        print('guessv:', th.max(out[:, 5:8].data), th.min(out[:, 5:8].data))
         sys.stdout.flush()
         return out
 
@@ -235,7 +238,7 @@ class Evolve(nn.Module):
         super(Evolve, self).__init__()
         n = INPUT + OUTPUT
         w = WINDOW
-        c = 7
+        c = 8
         d = c * w
 
         off_diag = np.ones([n, n]) - np.eye(n)
@@ -246,7 +249,7 @@ class Evolve(nn.Module):
         self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
     def forward(self, x, w=WINDOW):
-        mo = x[:, :1, :, :]
+        mo = x[:, 0:1, :, :]
         out = x.permute(0, 3, 2, 1).contiguous()
 
         logits = self.encoder(out, self.rel_rec, self.rel_send)
@@ -255,12 +258,15 @@ class Evolve(nn.Module):
         out = self.decoder(out, edges, self.rel_rec, self.rel_send, w)
         out = out.permute(0, 3, 2, 1).contiguous()
 
-        pn = out[:, 1:, :, :]
-        out = th.cat([mo, pn], dim=1)
+        hn = out[:, 1:2, :, :]
+        pn = out[:, 2:5, :, :]
+        vn = out[:, 5:8, :, :]
+        out = th.cat([mo, hn, pn, vn], dim=1)
 
-        print('evolvm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
-        print('evolvx:', th.max(out[:, 1:4].data), th.min(out[:, 1:4].data))
-        print('evolvv:', th.max(out[:, 4:].data), th.min(out[:, 4:].data))
+        print('evolvm:', th.max(mo.data), th.min(mo.data))
+        print('evolvh:', th.max(hn.data), th.min(hn.data))
+        print('evolvx:', th.max(pn.data), th.min(pn.data))
+        print('evolvv:', th.max(vn.data), th.min(vn.data))
         sys.stdout.flush()
 
         return out
@@ -271,7 +277,7 @@ class Ratio(nn.Module):
         super(Ratio, self).__init__()
 
         self.lstm = ConvLSTM(14 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 7 * WINDOW * (INPUT + OUTPUT))
+        self.linear = nn.Linear(2048, 8 * WINDOW * (INPUT + OUTPUT))
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -284,7 +290,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 7, WINDOW, INPUT + OUTPUT)
+        out = out.view(out.size(0), 8, WINDOW, INPUT + OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -297,7 +303,7 @@ class Model(nn.Module):
     def __init__(self, bsize=1):
         super(Model, self).__init__()
         self.batch = bsize
-        self.basedim = 7 * WINDOW * (INPUT + OUTPUT)
+        self.basedim = 8 * WINDOW * (INPUT + OUTPUT)
 
         self.guess = Guess()
         self.evolve = Evolve()
@@ -313,7 +319,7 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         x = x.view(sr * sb, sc, ss, si)
 
-        result = Variable(cast(np.zeros([sr * sb, 7, SIZE, OUTPUT])))
+        result = Variable(cast(np.zeros([sr * sb, 8, SIZE, OUTPUT])))
 
         init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init.contiguous())
