@@ -331,13 +331,10 @@ class Model(nn.Module):
                 initnx = x[:, :, i:WINDOW + i, :]
                 guessnx = self.guess(initnx.contiguous())
                 guessnx = th.cat([initnx, guessnx], dim=3)
+                ratio = self.ratio(th.cat([statenx, guessnx], dim=3))
+                state = ratio * statenx + (1 - ratio) * guessnx
             else:
-                input = statenx[:, :, :, :INPUT]
-                guessnx = self.guess(input.contiguous())
-                guessnx = th.cat([input, guessnx], dim=3)
-
-            ratio = self.ratio(th.cat([statenx, guessnx], dim=3))
-            state = ratio * statenx + (1 - ratio) * guessnx
+                state = statenx
 
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
