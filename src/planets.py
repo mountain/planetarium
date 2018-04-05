@@ -375,28 +375,28 @@ def loss(xs, ys, result):
     ms = ys[:, 0:1, :, :]
     #hs = ys[:, 1:2, :, :]
     ps = ys[:, 1:4, :, :]
-    #vs = ys[:, 5:8, :, :]
+    vs = ys[:, 4:7, :, :]
 
     gm = result[:, 0:1, :, :]
     #gh = result[:, 1:2, :, :]
     gp = result[:, 1:4, :, :]
-    #gv = result[:, 5:8, :, :]
+    gv = result[:, 4:7, :, :]
 
     loss_nll = nll_gaussian(result, ys, 5e-5)
     loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 1)
 
     pe = mse(gp, ps)
-    #ve = mse(gv, vs)
+    ve = mse(gv, vs)
     me = mse(gm, ms)
     #he = mse(gh, hs)
 
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
     print('per:', th.mean(th.sqrt(pe).data))
-    #print('ver:', th.mean(th.sqrt(ve).data))
+    print('ver:', th.mean(th.sqrt(ve).data))
     print('mer:', th.mean(th.sqrt(me).data))
     #print('her:', th.mean(th.sqrt(he).data))
-    print('ttl:', th.mean(th.sqrt(pe + me / 500).data))
+    print('ttl:', th.mean(th.sqrt(pe + ve + me / 500).data))
     print('lss:', th.mean(loss_nll.data))
     print('lkl:', th.mean(loss_kl.data))
     print('-----------------------------')
