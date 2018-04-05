@@ -327,7 +327,7 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         x = x.view(sr * sb, sc, ss, si)
 
-        result = Variable(cast(np.zeros([sr * sb, 8, SIZE, OUTPUT])))
+        result = Variable(cast(np.zeros([sr * sb, 8, SIZE, INPUT + OUTPUT])))
 
         init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init.contiguous())
@@ -340,8 +340,7 @@ class Model(nn.Module):
             sys.stdout.flush()
 
             state = self.evolve(state)
-            result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
-
+            result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, :]
 
         return result
 
@@ -385,32 +384,36 @@ def loss(xs, ys, result):
     ys = ys.view(sr * sb, sc, ss, si)
 
     im = xs[:, 0:1, :, :]
+    ip = xs[:, 2:5, :, :]
+    iv = xs[:, 5:8, :, :]
 
     ms = ys[:, 0:1, :, :]
-    hs = ys[:, 1:2, :, :]
     ps = ys[:, 2:5, :, :]
     vs = ys[:, 5:8, :, :]
 
+    tm = th.cat([im, ms], dim=3)
+    tp = th.cat([ip, ps], dim=3)
+    tv = th.cat([iv, vs], dim=3)
+    t = th.cat([tm, tp, tv], dim=1)
+
     gm = result[:, 0:1, :, :]
-    gh = result[:, 1:2, :, :]
     gp = result[:, 2:5, :, :]
     gv = result[:, 5:8, :, :]
+    g = th.cat([gm, gp, gv], dim=1)
 
-    loss_nll = nll_gaussian(result, ys, 5e-5)
+    loss_nll = nll_gaussian(t, g, 5e-5)
     loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 1)
 
-    pe = mse(gp, ps)
-    ve = mse(gv, vs)
-    me = mse(gm, ms)
-    he = mse(gh, hs)
+    pe = mse(tp, gp)
+    ve = mse(tv, gv)
+    me = mse(tm, gm)
 
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
     print('per:', th.mean(th.sqrt(pe).data))
     print('ver:', th.mean(th.sqrt(ve).data))
     print('mer:', th.mean(th.sqrt(me).data))
-    print('her:', th.mean(th.sqrt(he).data))
-    print('ttl:', th.mean(th.sqrt(pe + ve + me / 500 + he).data))
+    print('ttl:', th.mean(th.sqrt(pe + ve + me).data))
     print('lss:', th.mean(loss_nll.data))
     print('lkl:', th.mean(loss_kl.data))
     print('-----------------------------')
