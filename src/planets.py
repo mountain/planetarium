@@ -332,7 +332,7 @@ class Model(nn.Module):
         init = x[:, :, 0:WINDOW, :]
         guess = self.guess(init.contiguous())
         state = th.cat((init, guess), dim=3)
-        result[:, :, 0::SIZE, :] = guess[:, :, 0::SIZE, :]
+        result[:, :, 0::SIZE, :] = state[:, :, 0::SIZE, :]
 
         for i in range(1, SIZE, 1):
             print('-----------------------------')
