@@ -325,17 +325,7 @@ class Model(nn.Module):
             print('idx:', i)
             sys.stdout.flush()
 
-            statenx = self.evolve(state)
-
-            if i < SIZE - WINDOW:
-                initnx = x[:, :, i:WINDOW + i, :]
-                guessnx = self.guess(initnx.contiguous())
-                guessnx = th.cat([initnx, guessnx], dim=3)
-                ratio = self.ratio(th.cat([statenx, guessnx], dim=3))
-                state = ratio * statenx + (1 - ratio) * guessnx
-            else:
-                state = statenx
-
+            state = self.evolve(state)
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, INPUT:]
 
 
