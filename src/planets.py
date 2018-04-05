@@ -225,11 +225,19 @@ class Guess(nn.Module):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
-        print('guessm:', th.max(out[:, 0:1].data), th.min(out[:, 0:1].data))
-        print('guessh:', th.max(out[:, 1:2].data), th.min(out[:, 1:2].data))
-        print('guessx:', th.max(out[:, 2:5].data), th.min(out[:, 2:5].data))
-        print('guessv:', th.max(out[:, 5:8].data), th.min(out[:, 5:8].data))
+
+        mn = th.sigmoid(out[:, 0:1, :, :])
+        hn = out[:, 1:2, :, :]
+        pn = out[:, 2:5, :, :]
+        vn = out[:, 5:8, :, :]
+        out = th.cat([mn, hn, pn, vn], dim=1)
+
+        print('guessm:', th.max(mn.data), th.min(mn.data))
+        print('guessh:', th.max(hn.data), th.min(hn.data))
+        print('guessx:', th.max(pn.data), th.min(pn.data))
+        print('guessv:', th.max(vn.data), th.min(vn.data))
         sys.stdout.flush()
+
         return out
 
 
