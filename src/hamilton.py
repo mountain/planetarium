@@ -24,7 +24,7 @@ def hamiltonian(unit, m):
                 else:
                     u[i, j] = 0.0
 
-        return k + np.sum(u, axis=2)
+        return k[:, :limit] + np.sum(u, axis=2)
 
     return h
 
