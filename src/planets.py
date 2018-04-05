@@ -356,8 +356,8 @@ def predict(xs):
 
 counter = 0
 
-triu_indices = get_triu_offdiag_indices(7 * WINDOW * (INPUT + OUTPUT))
-tril_indices = get_tril_offdiag_indices(7 * WINDOW * (INPUT + OUTPUT))
+triu_indices = get_triu_offdiag_indices(8 * WINDOW * (INPUT + OUTPUT))
+tril_indices = get_tril_offdiag_indices(8 * WINDOW * (INPUT + OUTPUT))
 if th.cuda.is_available():
     triu_indices = triu_indices.cuda()
     tril_indices = tril_indices.cuda()
@@ -379,14 +379,14 @@ def loss(xs, ys, result):
     im = xs[:, 0:1, :, :]
 
     ms = ys[:, 0:1, :, :]
-    #hs = ys[:, 1:2, :, :]
-    ps = ys[:, 1:4, :, :]
-    vs = ys[:, 4:7, :, :]
+    hs = ys[:, 1:2, :, :]
+    ps = ys[:, 2:5, :, :]
+    vs = ys[:, 5:8, :, :]
 
     gm = result[:, 0:1, :, :]
-    #gh = result[:, 1:2, :, :]
-    gp = result[:, 1:4, :, :]
-    gv = result[:, 4:7, :, :]
+    gh = result[:, 1:2, :, :]
+    gp = result[:, 2:5, :, :]
+    gv = result[:, 5:8, :, :]
 
     loss_nll = nll_gaussian(result, ys, 5e-5)
     loss_kl = kl_categorical_uniform(model.evolve.prob, INPUT + OUTPUT, 1)
@@ -394,15 +394,15 @@ def loss(xs, ys, result):
     pe = mse(gp, ps)
     ve = mse(gv, vs)
     me = mse(gm, ms)
-    #he = mse(gh, hs)
+    he = mse(gh, hs)
 
     print('-----------------------------')
     print('dur:', time.time() - lasttime)
     print('per:', th.mean(th.sqrt(pe).data))
     print('ver:', th.mean(th.sqrt(ve).data))
     print('mer:', th.mean(th.sqrt(me).data))
-    #print('her:', th.mean(th.sqrt(he).data))
-    print('ttl:', th.mean(th.sqrt(pe + ve + me / 500).data))
+    print('her:', th.mean(th.sqrt(he).data))
+    print('ttl:', th.mean(th.sqrt(pe + ve + me / 500 + he).data))
     print('lss:', th.mean(loss_nll.data))
     print('lkl:', th.mean(loss_kl.data))
     print('-----------------------------')
@@ -414,14 +414,14 @@ def loss(xs, ys, result):
 
     if counter % 1 == 0:
         if th.cuda.is_available():
-            input = xs.data.cpu().numpy()[0, 1:4, :, :]
+            input = xs.data.cpu().numpy()[0, 2:5, :, :]
             truth = ps.data.cpu().numpy()[0, :, :, :]
             guess = result.data.cpu().numpy()[0, :, :, :]
             imass = im[0, 0, 0, :].data.cpu().numpy()
             gmass = gm[0, 0, 0, :].data.cpu().numpy()
             tmass = ms[0, 0, 0, :].data.cpu().numpy()
         else:
-            input = xs.data.numpy()[0, 1:4, :, :]
+            input = xs.data.numpy()[0, 2:5, :, :]
             truth = ps.data.numpy()[0, :, :, :]
             guess = result.data.numpy()[0, :, :, :]
             imass = im[0, 0, 0, :].data.numpy()
