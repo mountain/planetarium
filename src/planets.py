@@ -246,7 +246,7 @@ class Evolve(nn.Module):
         self.decoder = MLPDecoder(c, 1, 2048, 2048, 2048)
 
     def forward(self, x, w=WINDOW):
-        #mo = x[:, :1, :, :]
+        mo = x[:, :1, :, :]
         out = x.permute(0, 3, 2, 1).contiguous()
 
         logits = self.encoder(out, self.rel_rec, self.rel_send)
@@ -255,8 +255,8 @@ class Evolve(nn.Module):
         out = self.decoder(out, edges, self.rel_rec, self.rel_send, w)
         out = out.permute(0, 3, 2, 1).contiguous()
 
-        #pn = out[:, 1:, :, :]
-        #out = th.cat([mo, pn], dim=1)
+        pn = out[:, 1:, :, :]
+        out = th.cat([mo, pn], dim=1)
 
         print('evolvm:', th.max(out[:, :1].data), th.min(out[:, :1].data))
         print('evolvx:', th.max(out[:, 1:4].data), th.min(out[:, 1:4].data))
