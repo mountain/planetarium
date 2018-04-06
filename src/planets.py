@@ -226,11 +226,10 @@ class Guess(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
 
-        mn = th.sigmoid(out[:, 0:1, :, :])
+        mn = out[:, 0:1, :, :]
         hn = out[:, 1:2, :, :]
         pn = out[:, 2:5, :, :]
         vn = out[:, 5:8, :, :]
-        out = th.cat([mn, hn, pn, vn], dim=1)
 
         print('guessm:', th.max(mn.data), th.min(mn.data))
         print('guessh:', th.max(hn.data), th.min(hn.data))
