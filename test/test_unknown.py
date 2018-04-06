@@ -3,7 +3,7 @@
 import unittest
 import numpy as np
 
-import planets as p
+import unknown as p
 from os import environ
 
 xp = np
