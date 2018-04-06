@@ -284,7 +284,7 @@ class Ratio(nn.Module):
     def __init__(self):
         super(Ratio, self).__init__()
 
-        self.lstm = ConvLSTM(14 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = ConvLSTM(16 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
         self.linear = nn.Linear(2048, 8 * WINDOW * (INPUT + OUTPUT))
 
     def batch_size_changed(self, new_val, orig_val):
