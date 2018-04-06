@@ -458,6 +458,7 @@ def loss(xs, ys, result):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_aspect('equal')
         ax.plot(truth[0, :, 0], truth[1, :, 0], truth[2, :, 0], 'ro', markersize=msize(tmass[0]))
         ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=msize(tmass[1]))
         ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=msize(gmass[0]))
