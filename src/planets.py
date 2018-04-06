@@ -340,7 +340,7 @@ class Model(nn.Module):
             sys.stdout.flush()
 
             state = self.evolve(state)
-            init = state[:, :, 0:WINDOW, :]
+            init = state[:, :, 0:WINDOW, :INPUT]
             guess = self.guess(init.contiguous())
             update = th.cat((init, guess), dim=3)
             ratio = self.ratio(th.cat([state, update]), dim=1)
