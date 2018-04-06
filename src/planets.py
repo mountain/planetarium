@@ -346,6 +346,12 @@ class Model(nn.Module):
                 update = th.cat((init, guess), dim=3)
                 ratio = self.ratio(th.cat([state, update], dim=1))
                 state = ratio * state + (1 - ratio) * update
+            else:
+                init = state[:, :, :, :INPUT]
+                guess = self.guess(init.contiguous())
+                update = th.cat((init, guess), dim=3)
+                ratio = self.ratio(th.cat([state, update], dim=1))
+                state = ratio * state + (1 - ratio) * update
 
             result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, :]
 
