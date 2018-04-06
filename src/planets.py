@@ -383,6 +383,29 @@ if th.cuda.is_available():
     tril_indices = tril_indices.cuda()
 
 
+def set_aspect_equal_3d(ax):
+    """Fix equal aspect bug for 3D plots."""
+
+    xlim = ax.get_xlim3d()
+    ylim = ax.get_ylim3d()
+    zlim = ax.get_zlim3d()
+
+    from numpy import mean
+    xmean = mean(xlim)
+    ymean = mean(ylim)
+    zmean = mean(zlim)
+
+    plot_radius = max([abs(lim - mean_)
+                       for lims, mean_ in ((xlim, xmean),
+                                           (ylim, ymean),
+                                           (zlim, zmean))
+                       for lim in lims])
+
+    ax.set_xlim3d([xmean - plot_radius, xmean + plot_radius])
+    ax.set_ylim3d([ymean - plot_radius, ymean + plot_radius])
+    ax.set_zlim3d([zmean - plot_radius, zmean + plot_radius])
+
+
 def loss(xs, ys, result):
 
     global counter, lasttime
@@ -449,10 +472,12 @@ def loss(xs, ys, result):
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_aspect('equal')
         ax.plot(input[0, :, 1], input[1, :, 1], input[2, :, 1], 'o', markersize=msize(imass[1]))
         ax.plot(input[0, :, 2], input[1, :, 2], input[2, :, 2], 'o', markersize=msize(imass[2]))
         ax.plot(input[0, :, 3], input[1, :, 3], input[2, :, 3], 'o', markersize=msize(imass[3]))
         ax.plot(input[0, :, 4], input[1, :, 4], input[2, :, 4], 'o', markersize=msize(imass[4]))
+        set_aspect_equal_3d(ax)
         plt.savefig('data/obsv.png')
         plt.close()
 
@@ -463,6 +488,7 @@ def loss(xs, ys, result):
         ax.plot(truth[0, :, 1], truth[1, :, 1], truth[2, :, 1], 'bo', markersize=msize(tmass[1]))
         ax.plot(guess[0, :, 0], guess[1, :, 0], guess[2, :, 0], 'r+', markersize=msize(gmass[0]))
         ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'b+', markersize=msize(gmass[1]))
+        set_aspect_equal_3d(ax)
         plt.savefig('data/pred.png')
         plt.close()
 
