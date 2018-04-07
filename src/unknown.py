@@ -343,7 +343,6 @@ class Model(nn.Module):
 
             statenx = self.evolve(state)
             input = statenx[:, :, :, :INPUT]
-            target = statenx[:, :, :, INPUT:]
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
