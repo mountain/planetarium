@@ -226,10 +226,11 @@ class Guess(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
 
-        mn = out[:, 0:1, :, :]
+        mn = th.sigmoid(out[:, 0:1, :, :])
         hn = out[:, 1:2, :, :]
         pn = out[:, 2:5, :, :]
         vn = out[:, 5:8, :, :]
+        out = th.cat([mn, hn, pn, vn], dim=1)
 
         print('guessm:', th.max(mn.data), th.min(mn.data))
         print('guessh:', th.max(hn.data), th.min(hn.data))
@@ -284,7 +285,7 @@ class Ratio(nn.Module):
         super(Ratio, self).__init__()
 
         self.lstm = ConvLSTM(16 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 8 * WINDOW * (INPUT + OUTPUT))
+        self.linear = nn.Linear(2048, 8 * WINDOW * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -297,7 +298,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, WINDOW, INPUT + OUTPUT)
+        out = out.view(out.size(0), 8, WINDOW, OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -338,21 +339,22 @@ class Model(nn.Module):
             print('idx:', i)
             sys.stdout.flush()
 
-            state = self.evolve(state)
+            statenx = self.evolve(state)
+            input = statenx[:, :, :, :INPUT]
+            target = statenx[:, :, :, INPUT:]
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
-                update = th.cat((init, guess), dim=3)
-                ratio = self.ratio(th.cat([state, update], dim=1))
-                state = ratio * state + (1 - ratio) * update
+                stategs = th.cat((init, guess), dim=3)
             else:
-                init = state[:, :, :, :INPUT]
-                guess = self.guess(init.contiguous())
-                update = th.cat((init, guess), dim=3)
-                ratio = self.ratio(th.cat([state, update], dim=1))
-                state = ratio * state + (1 - ratio) * update
+                guess = self.guess(input.contiguous())
+                stategs = th.cat((input, guess), dim=3)
 
-            result[:, :, i::SIZE, :] = state[:, :, 0::WINDOW, :]
+            ratio = self.ratio(th.cat([statenx, stategs], dim=1))
+            update = ratio * target + (1 - ratio) * guess
+            state = th.cat((input, update), dim=3)
+
+            result[:, :, i::SIZE, :] = state[:, :, 0::SIZE, :]
 
         return result
 
