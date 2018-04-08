@@ -154,7 +154,7 @@ def generator(sz, yrs, btch):
 
             inputm = mnorm(mass[:, :].reshape([btch, sz, 1]))
             inputp = xp.tanh(rtp.reshape([btch, sz, 3]))
-            inputv = xp.tanh(rtv.reshape([btch, sz, 3]) * VSCALE)
+            inputv = xp.tanh(rtv.reshape([btch, sz, 3]))
             inputdh = dha.reshape([btch, sz, 1]) / au.G * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, sz * 8])
             yield year, input
