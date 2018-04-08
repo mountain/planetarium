@@ -147,7 +147,7 @@ def generator(n, m, yrs, btch):
     v = xp.sqrt(au.G / r) * u
     v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
 
-    center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1)).reshape([btch, 1, 3])
+    center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
     x = x - center
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
@@ -160,7 +160,7 @@ def generator(n, m, yrs, btch):
     for epoch in range(366 * (yrs + 1)):
         t, x, v = solver(t, x, v, 1)
 
-        center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1)).reshape([btch, 1, 3])
+        center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
         x = x - center
 
         year = int(t / 365.256363004)
