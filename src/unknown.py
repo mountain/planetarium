@@ -234,6 +234,7 @@ class Guess(nn.Module):
     def forward(self, x):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
+        out = out.view(out.size(0), -1)
         out = th.tanh(self.linear(out))
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
 
