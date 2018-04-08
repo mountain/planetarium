@@ -37,7 +37,7 @@ def batches(input_handler, retriever=identity, filter=filter_true, validator=val
                 result = [pick(record)]
 
             if validator(*result):
-                if len(result) == batch_size:
+                if len(result) >= batch_size:
                     yield result
 
 

@@ -41,8 +41,8 @@ SCALE = 120.0
 MSCALE = 500.0
 VSCALE = 10000.0
 
-BATCH = 7
-REPEAT = 2
+BATCH = 5
+REPEAT = 3
 SIZE = 32
 WINDOW = 8
 INPUT = 5
@@ -140,13 +140,8 @@ def generator(n, m, yrs, btch):
     x[:, 0, :] = xp.zeros([btch, 3], dtype=xp.float64)
 
     r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, sz, 1])
-    u = 2 * xp.random.rand(btch, sz, 3) - 1
-    u = u / xp.sqrt(u[:, :, 0] * u[:, :, 0] + u[:, :, 1] * u[:, :, 1] + u[:, :, 2] * u[:, :, 2] + epsilon).reshape([btch, sz, 1])
-    v = xp.sqrt(au.G / r) * u
+    v = xp.sqrt(au.G / r) * (2 * xp.random.rand(btch, sz, 3) - 1)
     v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
-
-    center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
-    x = x - center
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
     h = hamilton.hamiltonian(au, mass)
@@ -157,10 +152,6 @@ def generator(n, m, yrs, btch):
     lastyear = 0
     for epoch in range(366 * (yrs + 1)):
         t, x, v = solver(t, x, v, 1)
-
-        center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
-        x = x - center
-
         year = int(t / 365.256363004)
         if year != lastyear:
             lastyear = year
@@ -220,8 +211,7 @@ class Guess(nn.Module):
     def __init__(self, num_classes=8 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.lstm = StackedConvLSTM(3, 8 * WINDOW * INPUT, 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, num_classes)
+        self.lstm = StackedConvLSTM(3, 8 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -232,8 +222,6 @@ class Guess(nn.Module):
     def forward(self, x):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
-        out = out.view(out.size(0), -1)
-        out = th.tanh(self.linear(out))
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
 
         mn = th.sigmoid(out[:, 0:1, :, :])
@@ -277,7 +265,7 @@ class Evolve(nn.Module):
         out = out.permute(0, 3, 2, 1).contiguous()
 
         hn = out[:, 1:2, :, :]
-        pn = th.tanh(out[:, 2:5, :, :])
+        pn = out[:, 2:5, :, :]
         vn = out[:, 5:8, :, :]
         out = th.cat([mo, hn, pn, vn], dim=1)
 
@@ -295,7 +283,7 @@ class Ratio(nn.Module):
         super(Ratio, self).__init__()
 
         self.lstm = ConvLSTM(16 * WINDOW * (INPUT + OUTPUT), 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
-        self.linear = nn.Linear(2048, 8 * WINDOW * (INPUT + OUTPUT))
+        self.linear = nn.Linear(2048, 8 * WINDOW * OUTPUT)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -308,7 +296,7 @@ class Ratio(nn.Module):
         out = self.lstm(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
-        out = out.view(out.size(0), 8, WINDOW, INPUT + OUTPUT)
+        out = out.view(out.size(0), 8, WINDOW, OUTPUT)
         out = F.sigmoid(out)
 
         print('ratio:', th.max(out.data), th.min(out.data))
@@ -351,6 +339,7 @@ class Model(nn.Module):
 
             statenx = self.evolve(state)
             input = statenx[:, :, :, :INPUT]
+            target = statenx[:, :, :, INPUT:]
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
                 guess = self.guess(init.contiguous())
@@ -360,7 +349,8 @@ class Model(nn.Module):
                 stategs = th.cat((input, guess), dim=3)
 
             ratio = self.ratio(th.cat([statenx, stategs], dim=1))
-            state = ratio * statenx + (1 - ratio) * stategs
+            update = ratio * target + (1 - ratio) * guess
+            state = th.cat((input, update), dim=3)
 
             result[:, :, i::SIZE, :] = state[:, :, 0::SIZE, :]
 

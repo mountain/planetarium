@@ -3,15 +3,12 @@
 import unittest
 import numpy as np
 
-import nbody
-import ode
-import hamilton
+from physics import ode, hamilton, nbody
 import unit.au as au
 from os import environ
 
 xp = np
 if environ.get('CUDA_HOME') is not None:
-    import cupy as cp
     xp = np
 
 
