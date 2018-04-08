@@ -37,7 +37,7 @@ epsilon = 0.00000001
 
 MSCALE = 10
 VSCALE = 100.0
-SCALE = 5.0
+SCALE = 10.0
 
 BATCH = 5
 REPEAT = 12
@@ -98,13 +98,13 @@ def generator(sz, yrs, btch):
 
     t = 0
     lastyear = 0
-    for epoch in range(yrs * 100):
+    for epoch in range(yrs * 1000):
         t, x, v = solver(t, x, v, 0.01)
         center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
         x = x - center
 
         year = int(t)
-        if year != lastyear:
+        if 10 * int(year / 10) == lastyear + 10:
             lastyear = year
             rtp = x / SCALE
             rtv = v / SCALE
@@ -119,13 +119,13 @@ def generator(sz, yrs, btch):
             yield year, input
             lastha = ha
 
-            print('-----------------------------')
-            print('m:', np.max(inputm), np.min(inputm))
-            print('p:', np.max(inputp), np.min(inputp))
-            print('v:', np.max(inputv), np.min(inputv))
-            print('h:', np.max(inputdh), np.min(inputdh))
-            print('-----------------------------')
-            sys.stdout.flush()
+            #print('-----------------------------')
+            #print('m:', np.max(inputm), np.min(inputm))
+            #print('p:', np.max(inputp), np.min(inputp))
+            #print('v:', np.max(inputv), np.min(inputv))
+            #print('h:', np.max(inputdh), np.min(inputdh))
+            #print('-----------------------------')
+            #sys.stdout.flush()
 
     print('gen:', time.time() - lasttime)
     sys.stdout.flush()
@@ -192,13 +192,14 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         state = x.view(sr * sb, sc, ss, si)
         result = Variable(cast(np.zeros([sr * sb, 8, 2 * SIZE, BODYCOUNT])))
-        for i in range(2 * SIZE):
+        for i in range(3 * SIZE):
             print('-----------------------------')
             print('idx:', i)
             sys.stdout.flush()
 
             state = self.evolve(state, w=SIZE)
-            result[:, :, i, :] = state[:, :, 0, :]
+            if i >= SIZE:
+                result[:, :, i - SIZE, :] = state[:, :, 0, :]
 
         return result
 
@@ -311,7 +312,7 @@ def loss(xs, ys, result):
         ax.plot(guess[0, :, 1], guess[1, :, 1], guess[2, :, 1], 'g+', markersize=msize(gmass[1]))
         ax.plot(guess[0, :, 2], guess[1, :, 2], guess[2, :, 2], 'b+', markersize=msize(gmass[2]))
         set_aspect_equal_3d(ax)
-        plt.savefig('data/pred.png')
+        plt.savefig('data/3body.png')
         plt.close()
 
     return loss_nll + loss_kl
