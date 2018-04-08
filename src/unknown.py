@@ -147,6 +147,9 @@ def generator(n, m, yrs, btch):
     v = xp.sqrt(au.G / r) * u
     v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
 
+    center = np.sum(mass.reshape([btch, 1, 1]) * x, axis=2) / np.sum(mass, axis=1).reshape([btch, 1, 3])
+    x = x - center
+
     solver = ode.verlet(nbody.acceleration_of(au, mass))
     h = hamilton.hamiltonian(au, mass)
     lastha = h(x, v, limit=sz)
@@ -156,6 +159,10 @@ def generator(n, m, yrs, btch):
     lastyear = 0
     for epoch in range(366 * (yrs + 1)):
         t, x, v = solver(t, x, v, 1)
+
+        center = np.sum(mass.reshape([btch, 1, 1]) * x, axis=2) / np.sum(mass, axis=1).reshape([btch, 1, 3])
+        x = x - center
+
         year = int(t / 365.256363004)
         if year != lastyear:
             lastyear = year
@@ -215,7 +222,8 @@ class Guess(nn.Module):
     def __init__(self, num_classes=8 * WINDOW * OUTPUT):
         super(Guess, self).__init__()
 
-        self.lstm = StackedConvLSTM(3, 8 * WINDOW * INPUT, 2048, num_classes, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.lstm = StackedConvLSTM(3, 8 * WINDOW * INPUT, 2048, 2048, 1, padding=0, bsize=REPEAT*BATCH, width=1, height=1)
+        self.linear = nn.Linear(2048, num_classes)
 
     def batch_size_changed(self, new_val, orig_val):
         new_val = new_val * REPEAT
@@ -226,6 +234,7 @@ class Guess(nn.Module):
     def forward(self, x):
         out = x.view(x.size(0), -1, 1, 1)
         out = self.lstm(out)
+        out = th.tanh(self.linear(out))
         out = out.view(out.size(0), 8, WINDOW, OUTPUT)
 
         mn = th.sigmoid(out[:, 0:1, :, :])
