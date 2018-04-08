@@ -54,7 +54,7 @@ lasttime = time.time()
 
 
 def msize(x):
-    return int(1 + MSCALE * x / 2)
+    return int(1 + MSCALE * x / 10)
 
 
 def shufflefn(xs, ys):
@@ -83,7 +83,7 @@ def generator(sz, yrs, btch):
     global lasttime
     lasttime = time.time()
 
-    global mass, sun
+    global mass
 
     mass = xp.random.rand(btch, sz) * MSCALE
     x = xp.random.rand(btch, sz, 3) * SCALE
