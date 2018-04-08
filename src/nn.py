@@ -35,8 +35,9 @@ from flare.dataset.decorators import attributes, segment, divid, sequential, shu
 
 epsilon = 0.00000001
 
+MSCALE = 10
+VSCALE = 100.0
 SCALE = 5.0
-VSCALE = 10000.0
 
 BATCH = 5
 REPEAT = 12
@@ -52,16 +53,8 @@ sun = None
 lasttime = time.time()
 
 
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-
-def mnorm(x):
-    return 2 * sigmoid(6 / (1 - np.log(x))) - 1
-
-
 def msize(x):
-    return int(1 + 2 * x)
+    return int(1 + MSCALE * x / 2)
 
 
 def shufflefn(xs, ys):
@@ -86,48 +79,14 @@ def shufflefn(xs, ys):
     return xs, ys
 
 
-def divergence(xs, ys):
-    xs = xs - sun
-    ys = ys - sun
-    rx = np.linalg.norm(xs)
-    ry = np.linalg.norm(ys)
-    ux = xs / rx
-    uy = ys / ry
-    da = np.empty(ux.shape[0])
-    for i in range(ux.shape[0]):
-        da[i] = 1 - np.dot(ux[i], uy[i].T)
-    dr = (rx - ry) * (rx - ry)
-    return np.sum(da + dr)
-
-
-def divergence_th(xs, ys):
-    sz = xs.size()
-    b = sz[0]
-    v = sz[2] * sz[3]
-    s = Variable(cast(sun), requires_grad = False)
-    s = th.cat([s for _ in range(b // s.size()[0])], dim=0)
-
-    xs = xs.permute(0, 2, 3, 1).contiguous().view(b, v, 3)
-    ys = ys.permute(0, 2, 3, 1).contiguous().view(b, v, 3)
-    xs = xs - s
-    ys = ys - s
-    rx = th.norm(xs, p=2, dim=-1, keepdim=True)
-    ry = th.norm(ys, p=2, dim=-1, keepdim=True)
-    ux = xs / rx
-    uy = ys / ry
-    da = 1 - th.bmm(ux.view(b * v, 1, 3), uy.view(b * v, 3, 1)).view(b, v, 1)
-    dr = ((rx - ry) * (rx - ry)).view(b, v, 1)
-    return th.sum(da + dr, dim=2)
-
-
 def generator(sz, yrs, btch):
     global lasttime
     lasttime = time.time()
 
     global mass, sun
 
-    mass = xp.array(xp.random.rand(btch, sz), dtype=np.float)
-    x = SCALE / 2.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
+    mass = xp.random.rand(btch, sz) * MSCALE
+    x = xp.random.rand(btch, sz, 3) * SCALE
     v = xp.zeros([btch, sz, 3])
 
     center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
@@ -139,12 +98,12 @@ def generator(sz, yrs, btch):
 
     t = 0
     lastyear = 0
-    for epoch in range(100 * (yrs + 1)):
-        t, x, v = solver(t, x, v, 1)
+    for epoch in range(yrs * 100):
+        t, x, v = solver(t, x, v, 0.01)
         center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
         x = x - center
 
-        year = int(t / 100)
+        year = int(t)
         if year != lastyear:
             lastyear = year
             rtp = x / SCALE
@@ -152,21 +111,21 @@ def generator(sz, yrs, btch):
             ha = h(x, v, limit=sz)
             dha = ha - lastha
 
-            inputm = mnorm(mass[:, :].reshape([btch, sz, 1]))
+            inputm = mass[:, :].reshape([btch, sz, 1]) / MSCALE
             inputp = xp.tanh(rtp.reshape([btch, sz, 3]))
-            inputv = xp.tanh(rtv.reshape([btch, sz, 3]))
-            inputdh = dha.reshape([btch, sz, 1]) / au.G * SCALE
+            inputv = xp.tanh(rtv.reshape([btch, sz, 3]) * VSCALE)
+            inputdh = xp.tanh(dha.reshape([btch, sz, 1]) / au.G * SCALE)
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, sz * 8])
             yield year, input
             lastha = ha
 
-            #print('-----------------------------')
-            #print('m:', np.max(inputm), np.min(inputm))
-            #print('p:', np.max(inputp), np.min(inputp))
-            #print('v:', np.max(inputv), np.min(inputv))
-            #print('h:', np.max(inputdh), np.min(inputdh))
-            #print('-----------------------------')
-            #sys.stdout.flush()
+            print('-----------------------------')
+            print('m:', np.max(inputm), np.min(inputm))
+            print('p:', np.max(inputp), np.min(inputp))
+            print('v:', np.max(inputv), np.min(inputv))
+            print('h:', np.max(inputdh), np.min(inputdh))
+            print('-----------------------------')
+            sys.stdout.flush()
 
     print('gen:', time.time() - lasttime)
     sys.stdout.flush()
