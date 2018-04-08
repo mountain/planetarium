@@ -35,7 +35,7 @@ from flare.dataset.decorators import attributes, segment, divid, sequential, shu
 
 epsilon = 0.00000001
 
-SCALE = 120.0
+SCALE = 25.0
 VSCALE = 10000.0
 
 BATCH = 5
@@ -61,14 +61,13 @@ def mnorm(x):
 
 
 def msize(x):
-    return int(1 + x * 10.0)
+    return int(1 + 2 * x)
 
 
 def shufflefn(xs, ys):
     # permute on different input
-    seg = np.arange(1, xs.shape[-2], 1)
-    np.random.shuffle(seg)
-    perm = np.concatenate((np.array([0]), seg))
+    perm = np.arange(xs.shape[-2])
+    np.random.shuffle(perm)
     xs = xs[:, :, :, perm, :]
 
     # permute on different out
@@ -129,8 +128,10 @@ def generator(sz, yrs, btch):
 
     mass = xp.array(xp.random.rand(btch, sz), dtype=np.float)
     x = SCALE / 2.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
-    v = 2 * xp.random.rand(btch, sz, 3) - 1
-    v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
+    v = xp.zeros([btch, sz, 3])
+
+    center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
+    x = x - center
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
     h = hamilton.hamiltonian(au, mass)
@@ -138,9 +139,12 @@ def generator(sz, yrs, btch):
 
     t = 0
     lastyear = 0
-    for epoch in range(366 * (yrs + 1)):
+    for epoch in range(100 * (yrs + 1)):
         t, x, v = solver(t, x, v, 1)
-        year = int(t / 365.256363004)
+        center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
+        x = x - center
+
+        year = int(t / 100)
         if year != lastyear:
             lastyear = year
             rtp = x / SCALE
@@ -148,11 +152,9 @@ def generator(sz, yrs, btch):
             ha = h(x, v, limit=sz)
             dha = ha - lastha
 
-            sun = rtp[:, 0:1, :].reshape([btch, 1, 3])
-
             inputm = mnorm(mass[:, :].reshape([btch, sz, 1]))
-            inputp = rtp.reshape([btch, sz, 3])
-            inputv = rtv.reshape([btch, sz, 3]) * VSCALE
+            inputp = xp.tanh(rtp.reshape([btch, sz, 3]))
+            inputv = xp.tanh(rtv.reshape([btch, sz, 3]) * VSCALE)
             inputdh = dha.reshape([btch, sz, 1]) / au.G * SCALE
             input = np.concatenate([inputm, inputdh, inputp, inputv], axis=2).reshape([btch, sz * 8])
             yield year, input
