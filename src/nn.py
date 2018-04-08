@@ -36,7 +36,6 @@ from flare.dataset.decorators import attributes, segment, divid, sequential, shu
 epsilon = 0.00000001
 
 SCALE = 120.0
-MSCALE = 500.0
 VSCALE = 10000.0
 
 BATCH = 5
@@ -128,15 +127,9 @@ def generator(sz, yrs, btch):
 
     global mass, sun
 
-    mass = xp.array(xp.random.rand(btch, sz) / MSCALE, dtype=np.float)
-    mass[:, 0] = np.ones([btch])
-
+    mass = xp.array(xp.random.rand(btch, sz), dtype=np.float)
     x = SCALE / 2.0 * (2 * xp.random.rand(btch, sz, 3) - 1)
-    x[:, 0, :] = xp.zeros([btch, 3], dtype=xp.float64)
-
-    r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, sz, 1])
     v = 2 * xp.random.rand(btch, sz, 3) - 1
-    v = xp.sqrt(au.G / r) * v
     v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
