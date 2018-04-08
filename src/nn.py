@@ -135,9 +135,8 @@ def generator(sz, yrs, btch):
     x[:, 0, :] = xp.zeros([btch, 3], dtype=xp.float64)
 
     r = xp.sqrt(x[:, :, 0] * x[:, :, 0] + x[:, :, 1] * x[:, :, 1] + x[:, :, 2] * x[:, :, 2] + epsilon).reshape([btch, sz, 1])
-    u = 2 * xp.random.rand(btch, sz, 3) - 1
-    u = u / xp.sqrt(u[:, :, 0] * u[:, :, 0] + u[:, :, 1] * u[:, :, 1] + u[:, :, 2] * u[:, :, 2] + epsilon).reshape([btch, sz, 1])
-    v = xp.sqrt(au.G / r) * u
+    v = 2 * xp.random.rand(btch, sz, 3) - 1
+    v = xp.sqrt(au.G / r) * v
     v[:, 0, :] = - np.sum((mass[:, 1:, np.newaxis] * v[:, 1:, :]) / mass[:, 0:1, np.newaxis], axis=1)
 
     solver = ode.verlet(nbody.acceleration_of(au, mass))
