@@ -279,7 +279,7 @@ class Evolve(nn.Module):
         out = out.permute(0, 3, 2, 1).contiguous()
 
         hn = out[:, 1:2, :, :]
-        pn = out[:, 2:5, :, :]
+        pn = th.tanh(out[:, 2:5, :, :])
         vn = out[:, 5:8, :, :]
         out = th.cat([mo, hn, pn, vn], dim=1)
 
