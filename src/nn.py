@@ -35,7 +35,7 @@ from flare.dataset.decorators import attributes, segment, divid, sequential, shu
 
 epsilon = 0.00000001
 
-SCALE = 25.0
+SCALE = 5.0
 VSCALE = 10000.0
 
 BATCH = 5
