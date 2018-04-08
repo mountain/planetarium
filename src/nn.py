@@ -98,8 +98,8 @@ def generator(sz, yrs, btch):
 
     t = 0
     lastyear = 0
-    for epoch in range(yrs * 1000):
-        t, x, v = solver(t, x, v, 0.01)
+    for epoch in range(yrs * 144):
+        t, x, v = solver(t, x, v, 0.1)
         center = (np.sum(mass.reshape([btch, sz, 1]) * x, axis=1) / np.sum(mass, axis=1).reshape([btch, 1])).reshape([btch, 1, 3])
         x = x - center
 
@@ -107,7 +107,7 @@ def generator(sz, yrs, btch):
         if 10 * int(year / 10) == lastyear + 10:
             lastyear = year
             rtp = x / SCALE
-            rtv = v / SCALE
+            rtv = v
             ha = h(x, v, limit=sz)
             dha = ha - lastha
 
