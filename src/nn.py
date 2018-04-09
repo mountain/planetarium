@@ -41,7 +41,7 @@ SCALE = 10.0
 
 BATCH = 5
 REPEAT = 12
-SIZE = 8
+SIZE = 16
 BODYCOUNT = 3
 
 lr = 1e-5
@@ -135,12 +135,12 @@ def generator(sz, yrs, btch):
 @rebatch(repeat=REPEAT)
 @shuffle(shufflefn, repeat=REPEAT)
 @data()
-@sequential(['xs.d'], ['ys.d'], layout_in=[SIZE, BATCH, BODYCOUNT, 8], layout_out=[2 * SIZE, BATCH, BODYCOUNT, 8])
-@divid(lengths=[SIZE, 2 * SIZE], names=['xs', 'ys'])
-@segment(segment_size = 3 * SIZE)
+@sequential(['xs.d'], ['ys.d'], layout_in=[SIZE, BATCH, BODYCOUNT, 8], layout_out=[3 * SIZE, BATCH, BODYCOUNT, 8])
+@divid(lengths=[SIZE, 3 * SIZE], names=['xs', 'ys'])
+@segment(segment_size = 4 * SIZE)
 @attributes('yr', 'd')
 def dataset():
-    return generator(BODYCOUNT, 3 * SIZE, BATCH)
+    return generator(BODYCOUNT, 4 * SIZE, BATCH)
 
 
 class Evolve(nn.Module):
@@ -193,7 +193,8 @@ class Model(nn.Module):
         state0 = x.view(sr * sb, sc, ss, si)
         state1 = self.evolve(state0, w=SIZE)
         state2 = self.evolve(state1, w=SIZE)
-        result = th.cat([state1, state2], dim=2)
+        state3 = self.evolve(state2, w=SIZE)
+        result = th.cat([state1, state2, state3], dim=2)
 
         return result
 
