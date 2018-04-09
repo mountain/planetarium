@@ -195,7 +195,7 @@ class Model(nn.Module):
         for i in range(4 * SIZE):
             state = self.evolve(state, w=1)
             if i >= SIZE:
-                result[:, :, i - SIZE, :] = state[:, :, -1, :]
+                result[:, :, i - SIZE, :] = state[:, :, 0, :]
 
         return result
 
