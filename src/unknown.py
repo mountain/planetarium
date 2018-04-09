@@ -349,7 +349,7 @@ class Model(nn.Module):
             print('idx:', i)
             sys.stdout.flush()
 
-            statenx = self.evolve(state)
+            statenx = self.evolve(state, w=1)
             input = statenx[:, :, :, :INPUT]
             if i < SIZE - WINDOW:
                 init = x[:, :, i:WINDOW+i, :]
