@@ -54,7 +54,7 @@ lasttime = time.time()
 
 
 def msize(x):
-    return int(1 + MSCALE * x / 10)
+    return int(1 + 3 * x)
 
 
 def shufflefn(xs, ys):
@@ -250,10 +250,6 @@ def loss(xs, ys, result):
 
     global counter, lasttime
     counter = counter + 1
-
-    xs = xs.permute(0, 2, 4, 1, 3).contiguous()
-    sr, sb, sc, ss, si = tuple(xs.size())
-    xs = xs.view(sr * sb, sc, ss, si)
 
     ys = ys.permute(0, 2, 4, 1, 3).contiguous()
     sr, sb, sc, ss, si = tuple(ys.size())
