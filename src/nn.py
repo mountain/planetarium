@@ -192,14 +192,13 @@ class Model(nn.Module):
         sr, sb, sc, ss, si = tuple(x.size())
         state = x.view(sr * sb, sc, ss, si)
         result = Variable(cast(np.zeros([sr * sb, 8, 2 * SIZE, BODYCOUNT])))
-        for i in range(3 * SIZE):
+        for i in range(3):
             print('-----------------------------')
             print('idx:', i)
             sys.stdout.flush()
 
             state = self.evolve(state, w=SIZE)
-            if i >= SIZE:
-                result[:, :, i - SIZE, :] = state[:, :, 0, :]
+            result[:, :, i*SIZE:(i+1)*SIZE, :] = state[:, :, :, :]
 
         return result
 
