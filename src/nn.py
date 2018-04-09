@@ -41,7 +41,7 @@ SCALE = 10.0
 
 BATCH = 5
 REPEAT = 12
-SIZE = 16
+SIZE = 8
 BODYCOUNT = 3
 
 lr = 1e-5
