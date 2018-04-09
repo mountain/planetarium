@@ -54,7 +54,7 @@ lasttime = time.time()
 
 
 def msize(x):
-    return int(1 + 3 * x)
+    return int(1 + 6 * x)
 
 
 def shufflefn(xs, ys):
