@@ -362,7 +362,7 @@ class Model(nn.Module):
             ratio = self.ratio(th.cat([statenx, stategs], dim=1))
             state = ratio * statenx + (1 - ratio) * stategs
 
-            result[:, :, i::SIZE, :] = state[:, :, 0::SIZE, :]
+            result[:, :, i::SIZE, :] = state[:, :, -1::SIZE, :]
 
         return result
 

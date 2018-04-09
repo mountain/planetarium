@@ -190,11 +190,12 @@ class Model(nn.Module):
     def forward(self, x):
         x = x.permute(0, 2, 4, 1, 3).contiguous()
         sr, sb, sc, ss, si = tuple(x.size())
-        state0 = x.view(sr * sb, sc, ss, si)
-        state1 = self.evolve(state0, w=SIZE)
-        state2 = self.evolve(state1, w=SIZE)
-        state3 = self.evolve(state2, w=SIZE)
-        result = th.cat([state1, state2, state3], dim=2)
+        state = x.view(sr * sb, sc, ss, si)
+        result = Variable(cast(np.zeros([sr * sb, 8, 3 * SIZE, BODYCOUNT])))
+        for i in range(4 * SIZE):
+            state = self.evolve(state, w=1)
+            if i >= SIZE:
+                result[:, :, i - SIZE, :] = state[:, :, -1, :]
 
         return result
 
